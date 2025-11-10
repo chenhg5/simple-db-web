@@ -64,6 +64,8 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 	switch info.Type {
 	case "mysql":
 		db = database.NewMySQL()
+	case "kingsoft":
+		db = database.NewKingsoftDB()
 	default:
 		http.Error(w, "不支持的数据库类型", http.StatusBadRequest)
 		return
@@ -198,10 +200,10 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"data":    data,
-		"total":   total,
-		"page":    page,
+		"success":  true,
+		"data":     data,
+		"total":    total,
+		"page":     page,
 		"pageSize": pageSize,
 	})
 }
@@ -290,9 +292,9 @@ func (s *Server) UpdateRow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Table  string                 `json:"table"`
-		Data   map[string]interface{} `json:"data"`
-		Where  map[string]interface{} `json:"where"`
+		Table string                 `json:"table"`
+		Data  map[string]interface{} `json:"data"`
+		Where map[string]interface{} `json:"where"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -433,7 +435,7 @@ func (s *Server) SetupRoutes() {
 	http.HandleFunc("/api/query", s.ExecuteQuery)
 	http.HandleFunc("/api/row/update", s.UpdateRow)
 	http.HandleFunc("/api/row/delete", s.DeleteRow)
-	
+
 	// 静态文件
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
@@ -444,4 +446,3 @@ func (s *Server) Start(addr string) error {
 	log.Printf("服务器启动在 %s", addr)
 	return http.ListenAndServe(addr, nil)
 }
-
