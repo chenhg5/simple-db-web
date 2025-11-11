@@ -48,9 +48,10 @@ func (m *OpenguassDialect) getColumnsFromSchema(schema string) ([]ColumnInfo, er
 	// 匹配列定义
 	// 格式: column_name type NOT NULL DEFAULT value
 	// 或: column_name type NOT NULL
-	// 注意：列名没有引号，DEFAULT 值可能是函数调用、字符串、数字等
+	// 注意：列名没有引号，类型可能包含空格（如 character varying (64)）
+	// DEFAULT 值可能是函数调用、字符串、数字等
 	// 先匹配列名和类型，然后手动解析 DEFAULT 值（因为可能包含括号）
-	reg := regexp.MustCompile(`(\w+)\s+(\S+)\s+NOT\s+NULL`)
+	reg := regexp.MustCompile(`(\w+)\s+(.+?)\s+NOT\s+NULL`)
 	matches := reg.FindAllStringSubmatch(schema, -1)
 
 	for _, match := range matches {

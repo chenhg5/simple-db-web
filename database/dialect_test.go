@@ -183,11 +183,29 @@ NOT CLUSTER PRIMARY KEY("id")) STORAGE(ON "MAIN", CLUSTERBTR) ;`,
 }
 
 func TestQueryMetaData(t *testing.T) {
-	host := "10.13.83.245"
-	user := "vastwps"
+	// host := "10.13.83.245"
+	// user := "vastwps"
+	// password := "r9S3LjQ@C5FkW$"
+	// port := 20142
+	dbname := "kim"
+
+	// KING_DB_HOST 10.13.83.244
+	// KING_DB_PORT 20142
+	// KING_DB_USER TEST01
+	// KING_DB_PASSWD Vh3auMiCSBRdy@*-
+	// host := "10.13.83.244"
+	// user := "TEST01"
+	// password := "Vh3auMiCSBRdy@*-"
+	// port := 20142
+
+	// OCEAN_DB_HOST 10.13.83.246
+	// OCEAN_DB_PORT 20142
+	// OCEAN_DB_USER root@mysqlt#obcluster
+	// OCEAN_DB_PASSWD r9S3LjQ@C5FkW$
+	host := "10.13.83.246"
+	user := "root@mysqlt#obcluster"
 	password := "r9S3LjQ@C5FkW$"
 	port := 20142
-	dbname := "kim"
 
 	db, err := xmysqlv2.NewDBBuilder(&xmysql.Database{
 		Host: host,
@@ -361,6 +379,31 @@ func TestOpenguassDialect_getColumnsFromSchema(t *testing.T) {
 				{Name: "id", Type: "bigint", DefaultValue: "nextval('seq'::regclass)", Key: "PRI"},
 				{Name: "user_id", Type: "bigint", DefaultValue: "0", Key: "PRI"},
 				{Name: "role_id", Type: "bigint", DefaultValue: "0", Key: ""},
+			},
+			expectedError: false,
+		},
+		{
+			name: "测试用例：kim_partition_dbinst 表（实际场景）",
+			schema: `CREATE TABLE kim_partition_dbinst (
+	id bigint  NOT NULL DEFAULT nextval('test_kim_1164367684788410899.kim_partition_dbinst_id_seq'::regclass),
+	src_database character varying (64) NOT NULL DEFAULT ''::character varying,
+	src_table character varying (64) NOT NULL DEFAULT ''::character varying,
+	mgr_id bigint  NOT NULL DEFAULT 0,
+	db_inst character varying (64) NOT NULL DEFAULT ''::character varying,
+	dst_table character varying (64) NOT NULL DEFAULT ''::character varying,
+	start_pos bigint  NOT NULL DEFAULT 0,
+	end_pos bigint  NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id,id,id )
+);`,
+			expectedCols: []ColumnInfo{
+				{Name: "id", Type: "bigint", DefaultValue: "nextval('test_kim_1164367684788410899.kim_partition_dbinst_id_seq'::regclass)", Key: "PRI"},
+				{Name: "src_database", Type: "character varying (64)", DefaultValue: "''", Key: ""},
+				{Name: "src_table", Type: "character varying (64)", DefaultValue: "''", Key: ""},
+				{Name: "mgr_id", Type: "bigint", DefaultValue: "0", Key: ""},
+				{Name: "db_inst", Type: "character varying (64)", DefaultValue: "''", Key: ""},
+				{Name: "dst_table", Type: "character varying (64)", DefaultValue: "''", Key: ""},
+				{Name: "start_pos", Type: "bigint", DefaultValue: "0", Key: ""},
+				{Name: "end_pos", Type: "bigint", DefaultValue: "0", Key: ""},
 			},
 			expectedError: false,
 		},

@@ -66,6 +66,10 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 		db = database.NewMySQL()
 	case "dameng":
 		db = database.NewKingsoftDB("dameng")
+	case "openguass":
+		db = database.NewKingsoftDB("openguass")
+	case "vastbase":
+		db = database.NewKingsoftDB("vastbase")
 	default:
 		http.Error(w, "不支持的数据库类型", http.StatusBadRequest)
 		return
