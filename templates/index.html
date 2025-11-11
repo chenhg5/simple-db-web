@@ -4,6 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SimpleDB - 数据库管理工具</title>
+    <script>
+        // 动态设置 base 标签，确保相对路径正确解析
+        (function() {
+            const path = window.location.pathname;
+            // 确保路径以 / 结尾，这样相对路径会基于当前目录
+            const basePath = path.endsWith('/') ? path : path + '/';
+            const base = document.createElement('base');
+            base.href = basePath;
+            document.head.insertBefore(base, document.head.firstChild);
+        })();
+    </script>
     <link rel="stylesheet" href="static/style.css">
 </head>
 <body>

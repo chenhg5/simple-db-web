@@ -8,8 +8,18 @@ let connectionId = null; // 当前连接的ID
 let connectionInfo = null; // 当前连接信息
 let currentDbType = null; // 当前数据库类型
 
-// API 基础路径，使用相对路径以支持路由前缀
-const API_BASE = './api';
+// API 基础路径，动态获取以支持路由前缀
+// 获取当前页面的基础路径（去掉文件名，保留路径部分）
+function getBasePath() {
+    const path = window.location.pathname;
+    // 去掉末尾的斜杠（如果有）
+    const basePath = path.endsWith('/') ? path.slice(0, -1) : path;
+    // 如果路径为空，返回空字符串（根路径）
+    return basePath || '';
+}
+
+// API 基础路径
+const API_BASE = `${getBasePath()}/api`;
 
 // DOM元素
 const connectionStatus = document.getElementById('connectionStatus');
