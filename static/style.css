@@ -34,6 +34,8 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    position: relative;
+    padding-bottom: 60px; /* 为footer留出空间 */
 }
 
 /* 顶部导航栏 */
@@ -79,6 +81,7 @@ body {
     display: flex;
     flex: 1;
     overflow: hidden;
+    padding-bottom: 60px; /* 为footer留出空间 */
 }
 
 /* 左侧边栏 */
@@ -565,3 +568,29 @@ body {
     background: var(--border-color);
 }
 
+
+
+/* Footer */
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border-color);
+    padding: 1rem 2rem;
+    text-align: center;
+    z-index: 100;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.footer p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}

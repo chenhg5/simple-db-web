@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数据库管理工具</title>
+    <title>SimpleDB - 数据库管理工具</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
         <!-- 顶部导航栏 -->
         <header class="header">
             <div class="header-content">
-                <h1 class="logo">数据库管理工具</h1>
+                <h1 class="logo">SimpleDB</h1>
                 <div class="connection-status" id="connectionStatus">
                     <span class="status-indicator disconnected"></span>
                     <span>未连接</span>
@@ -58,7 +58,10 @@
                             <label>用户名</label>
                             <input type="text" id="user" class="form-control" placeholder="root">
                             <label>密码</label>
-                            <input type="password" id="password" class="form-control" placeholder="password">
+                            <div style="position: relative;">
+                                <input type="password" id="password" class="form-control" placeholder="password" style="padding-right: 2.5rem;">
+                                <button type="button" id="togglePassword" style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0.25rem; color: var(--text-secondary);" title="显示/隐藏密码">👁️</button>
+                            </div>
                             <label style="display: flex; align-items: center; margin-top: 0.5rem;">
                                 <input type="checkbox" id="rememberConnection" style="margin-right: 0.5rem;">
                                 <span>记住连接</span>
@@ -147,6 +150,48 @@
                     <div class="query-results" id="queryResults"></div>
                 </div>
             </main>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2024 SimpleDB. All rights reserved.</p>
+            <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem;">Simple Database Management Tool</p>
+        </div>
+    </footer>
+
+    <!-- 删除连接确认模态框 -->
+    <div class="modal" id="deleteConnectionModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>确认删除连接</h3>
+                <button class="modal-close" id="closeDeleteConnectionModal">×</button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除这个保存的连接吗？此操作无法撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelDeleteConnection">取消</button>
+                <button class="btn btn-danger" id="confirmDeleteConnection">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 清除所有连接确认模态框 -->
+    <div class="modal" id="clearAllConnectionsModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>确认清除所有连接</h3>
+                <button class="modal-close" id="closeClearAllConnectionsModal">×</button>
+            </div>
+            <div class="modal-body">
+                <p>确定要清除所有保存的连接吗？此操作无法撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelClearAllConnections">取消</button>
+                <button class="btn btn-danger" id="confirmClearAllConnections">清除所有</button>
+            </div>
         </div>
     </div>
 

@@ -14,9 +14,11 @@ import (
 
 // Server 服务器结构
 type Server struct {
-	templates *template.Template
-	db        database.Database
-	dbMutex   sync.RWMutex
+	templates      *template.Template
+	db             database.Database
+	dbMutex        sync.RWMutex
+	currentDatabase string
+	currentTable    string
 }
 
 // NewServer 创建新的服务器实例
@@ -133,6 +135,10 @@ func (s *Server) GetTableSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.dbMutex.Lock()
+	s.currentTable = tableName
+	s.dbMutex.Unlock()
+
 	s.dbMutex.RLock()
 	db := s.db
 	s.dbMutex.RUnlock()
@@ -209,6 +215,10 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "未连接数据库", http.StatusBadRequest)
 		return
 	}
+
+	s.dbMutex.Lock()
+	s.currentTable = tableName
+	s.dbMutex.Unlock()
 
 	data, total, err := db.GetTableData(tableName, page, pageSize)
 	if err != nil {
@@ -506,6 +516,11 @@ func (s *Server) SwitchDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.dbMutex.Lock()
+	s.currentDatabase = req.Database
+	s.currentTable = "" // 切换数据库时清空当前表
+	s.dbMutex.Unlock()
+
 	// 切换数据库后重新加载表列表
 	tables, err := db.GetTables()
 	if err != nil {
@@ -534,6 +549,8 @@ func (s *Server) Disconnect(w http.ResponseWriter, r *http.Request) {
 		s.db.Close()
 		s.db = nil
 	}
+	s.currentDatabase = ""
+	s.currentTable = ""
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
@@ -541,11 +558,38 @@ func (s *Server) Disconnect(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetStatus 获取连接状态
+func (s *Server) GetStatus(w http.ResponseWriter, r *http.Request) {
+	s.dbMutex.RLock()
+	db := s.db
+	currentDatabase := s.currentDatabase
+	currentTable := s.currentTable
+	s.dbMutex.RUnlock()
+
+	connected := db != nil
+	response := map[string]interface{}{
+		"connected": connected,
+	}
+
+	if connected {
+		// 获取数据库列表
+		databases, err := db.GetDatabases()
+		if err == nil {
+			response["databases"] = databases
+		}
+		response["currentDatabase"] = currentDatabase
+		response["currentTable"] = currentTable
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
 // SetupRoutes 设置路由
 func (s *Server) SetupRoutes() {
 	http.HandleFunc("/", s.Home)
 	http.HandleFunc("/api/connect", s.Connect)
 	http.HandleFunc("/api/disconnect", s.Disconnect)
+	http.HandleFunc("/api/status", s.GetStatus)
 	http.HandleFunc("/api/databases", s.GetDatabases)
 	http.HandleFunc("/api/database/switch", s.SwitchDatabase)
 	http.HandleFunc("/api/tables", s.GetTables)

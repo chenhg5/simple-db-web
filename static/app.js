@@ -47,6 +47,30 @@ const deleteModal = document.getElementById('deleteModal');
 const closeDeleteModal = document.getElementById('closeDeleteModal');
 const cancelDelete = document.getElementById('cancelDelete');
 const confirmDelete = document.getElementById('confirmDelete');
+const togglePassword = document.getElementById('togglePassword');
+const deleteConnectionModal = document.getElementById('deleteConnectionModal');
+const closeDeleteConnectionModal = document.getElementById('closeDeleteConnectionModal');
+const cancelDeleteConnection = document.getElementById('cancelDeleteConnection');
+const confirmDeleteConnection = document.getElementById('confirmDeleteConnection');
+const clearAllConnectionsModal = document.getElementById('clearAllConnectionsModal');
+const closeClearAllConnectionsModal = document.getElementById('closeClearAllConnectionsModal');
+const cancelClearAllConnections = document.getElementById('cancelClearAllConnections');
+const confirmClearAllConnections = document.getElementById('confirmClearAllConnections');
+
+// 删除连接相关的状态
+let deleteConnectionIndex = null;
+
+// 密码显示/隐藏切换
+togglePassword.addEventListener('click', () => {
+    const passwordInput = document.getElementById('password');
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        togglePassword.textContent = '🙈';
+    } else {
+        passwordInput.type = 'password';
+        togglePassword.textContent = '👁️';
+    }
+});
 
 // 连接模式切换
 connectionMode.addEventListener('change', (e) => {
@@ -190,7 +214,8 @@ function loadSavedConnections() {
         // 点击删除按钮
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            deleteSavedConnection(index);
+            deleteConnectionIndex = index;
+            deleteConnectionModal.style.display = 'flex';
         });
         
         buttonWrapper.appendChild(connectBtn);
@@ -297,17 +322,91 @@ function deleteSavedConnection(index) {
     loadSavedConnections();
 }
 
+// 确认删除连接
+confirmDeleteConnection.addEventListener('click', () => {
+    if (deleteConnectionIndex !== null) {
+        deleteSavedConnection(deleteConnectionIndex);
+        deleteConnectionModal.style.display = 'none';
+        deleteConnectionIndex = null;
+        showNotification('已删除连接', 'success');
+    }
+});
+
+// 取消删除连接
+cancelDeleteConnection.addEventListener('click', () => {
+    deleteConnectionModal.style.display = 'none';
+    deleteConnectionIndex = null;
+});
+
+closeDeleteConnectionModal.addEventListener('click', () => {
+    deleteConnectionModal.style.display = 'none';
+    deleteConnectionIndex = null;
+});
+
 // 清空所有保存的连接
 clearSavedConnections.addEventListener('click', () => {
-    if (confirm('确定要清空所有保存的连接吗？')) {
-        localStorage.removeItem('savedConnections');
-        loadSavedConnections();
-        showNotification('已清空所有保存的连接', 'success');
-    }
+    clearAllConnectionsModal.style.display = 'flex';
+});
+
+// 确认清除所有连接
+confirmClearAllConnections.addEventListener('click', () => {
+    localStorage.removeItem('savedConnections');
+    loadSavedConnections();
+    clearAllConnectionsModal.style.display = 'none';
+    showNotification('已清空所有保存的连接', 'success');
+});
+
+// 取消清除所有连接
+cancelClearAllConnections.addEventListener('click', () => {
+    clearAllConnectionsModal.style.display = 'none';
+});
+
+closeClearAllConnectionsModal.addEventListener('click', () => {
+    clearAllConnectionsModal.style.display = 'none';
 });
 
 // 页面加载时加载保存的连接
 loadSavedConnections();
+
+// 页面加载时尝试恢复连接
+async function restoreConnection() {
+    try {
+        // 检查是否有活动的连接（通过检查服务器状态）
+        const response = await fetch('/api/status');
+        const data = await response.json();
+        
+        if (response.ok && data.connected) {
+            // 有活动的连接，恢复UI状态
+            updateConnectionStatus(true);
+            connectionPanel.style.display = 'none';
+            databasePanel.style.display = 'block';
+            
+            // 加载数据库列表
+            await loadDatabases(data.databases || []);
+            
+            // 如果有当前数据库，恢复它
+            if (data.currentDatabase) {
+                databaseSelect.value = data.currentDatabase;
+                await switchDatabase(data.currentDatabase);
+            }
+            
+            // 如果有当前表，恢复它
+            if (data.currentTable) {
+                currentTable = data.currentTable;
+                await loadTableData();
+                await loadTableSchema();
+            }
+        }
+    } catch (error) {
+        // 连接失败，保持未连接状态
+        console.log('无法恢复连接:', error);
+    }
+}
+
+// 页面加载完成后尝试恢复连接
+document.addEventListener('DOMContentLoaded', () => {
+    restoreConnection();
+});
 
 // 连接数据库
 connectionForm.addEventListener('submit', async (e) => {
