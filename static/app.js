@@ -8,6 +8,9 @@ let connectionId = null; // 当前连接的ID
 let connectionInfo = null; // 当前连接信息
 let currentDbType = null; // 当前数据库类型
 
+// API 基础路径，使用相对路径以支持路由前缀
+const API_BASE = './api';
+
 // DOM元素
 const connectionStatus = document.getElementById('connectionStatus');
 const connectionInfoElement = document.getElementById('connectionInfo');
@@ -281,7 +284,7 @@ async function connectWithSavedConnection(savedConn) {
     const connectBtn = connectionForm.querySelector('button[type="submit"]');
     setButtonLoading(connectBtn, true);
     try {
-        const response = await fetch('/api/connect', {
+        const response = await fetch(`${API_BASE}/connect`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -424,7 +427,7 @@ function setButtonLoading(button, loading) {
 // 加载数据库类型列表
 async function loadDatabaseTypes() {
     try {
-        const response = await fetch('/api/database/types');
+        const response = await fetch(`${API_BASE}/database/types`);
         const data = await response.json();
         
         if (data.success && data.types) {
@@ -478,7 +481,7 @@ async function restoreConnection() {
         }
         
         // 检查连接是否仍然有效
-        const response = await fetch('/api/status', {
+        const response = await fetch(`${API_BASE}/status`, {
             headers: {
                 'X-Connection-ID': savedConnectionId
             }
@@ -558,7 +561,7 @@ connectionForm.addEventListener('submit', async (e) => {
     }
     
     try {
-        const response = await fetch('/api/connect', {
+        const response = await fetch(`${API_BASE}/connect`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -714,7 +717,7 @@ async function loadDatabases(databases) {
             if (connectionId) {
                 headers['X-Connection-ID'] = connectionId;
             }
-            const response = await fetch('/api/databases', {
+            const response = await fetch(`${API_BASE}/databases`, {
                 headers: headers
             });
             const data = await response.json();
@@ -751,7 +754,7 @@ async function switchDatabase(databaseName) {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/database/switch', {
+        const response = await fetch(`${API_BASE}/database/switch`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({ database: databaseName })
@@ -827,7 +830,7 @@ disconnectBtn.addEventListener('click', async () => {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/disconnect', {
+        const response = await fetch(`${API_BASE}/disconnect`, {
             method: 'POST',
             headers: headers
         });
@@ -872,7 +875,7 @@ async function loadTables() {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/tables', {
+        const response = await fetch(`${API_BASE}/tables`, {
             headers: headers
         });
         const data = await response.json();
@@ -928,7 +931,7 @@ async function loadTableData() {
             headers['X-Connection-ID'] = connectionId;
         }
         // 先获取列信息，确保按正确顺序显示
-        const columnsResponse = await fetch(`/api/table/columns?table=${currentTable}`, {
+        const columnsResponse = await fetch(`${API_BASE}/table/columns?table=${currentTable}`, {
             headers: headers
         });
         const columnsData = await columnsResponse.json();
@@ -938,7 +941,7 @@ async function loadTableData() {
         }
         
         // 然后获取数据
-        const response = await fetch(`/api/table/data?table=${currentTable}&page=${currentPage}&pageSize=${pageSize}`, {
+        const response = await fetch(`${API_BASE}/table/data?table=${currentTable}&page=${currentPage}&pageSize=${pageSize}`, {
             headers: headers
         });
         const data = await response.json();
@@ -1121,7 +1124,7 @@ async function loadTableSchema() {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch(`/api/table/schema?table=${currentTable}`, {
+        const response = await fetch(`${API_BASE}/table/schema?table=${currentTable}`, {
             headers: headers
         });
         const data = await response.json();
@@ -1173,7 +1176,7 @@ executeQuery.addEventListener('click', async () => {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/query', {
+        const response = await fetch(`${API_BASE}/query`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({ query })
@@ -1310,7 +1313,7 @@ saveEdit.addEventListener('click', async () => {
         if (connectionId) {
             requestHeaders['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/row/update', {
+        const response = await fetch(`${API_BASE}/row/update`, {
             method: 'POST',
             headers: requestHeaders,
             body: JSON.stringify({
@@ -1375,7 +1378,7 @@ confirmDelete.addEventListener('click', async () => {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/row/delete', {
+        const response = await fetch(`${API_BASE}/row/delete`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({
