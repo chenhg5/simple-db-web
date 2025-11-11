@@ -24,11 +24,23 @@ type ConnectionSession struct {
 	createdAt       time.Time
 }
 
+// DatabaseFactory 数据库工厂函数类型
+type DatabaseFactory func() database.Database
+
+// DatabaseTypeInfo 数据库类型信息
+type DatabaseTypeInfo struct {
+	Type        string `json:"type"`         // 数据库类型标识
+	DisplayName string `json:"display_name"` // 显示名称
+}
+
 // Server 服务器结构
 type Server struct {
-	templates     *template.Template
-	sessions      map[string]*ConnectionSession
-	sessionsMutex sync.RWMutex
+	templates       *template.Template
+	sessions        map[string]*ConnectionSession
+	sessionsMutex   sync.RWMutex
+	customDatabases map[string]DatabaseFactory // 自定义数据库类型
+	customDbMutex   sync.RWMutex
+	builtinTypes    map[string]string // 内置数据库类型及其显示名称
 }
 
 // NewServer 创建新的服务器实例
@@ -38,10 +50,67 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("加载模板失败: %w", err)
 	}
 
+	// 初始化内置数据库类型
+	builtinTypes := map[string]string{
+		"mysql":      "MySQL",
+		"postgres":   "PostgreSQL",
+		"postgresql": "PostgreSQL",
+		"sqlite":     "SQLite",
+		"dameng":     "达梦",
+		"openguass":  "OpenGauss",
+		"vastbase":   "Vastbase",
+		"kingbase":   "人大金仓",
+		"oceandb":    "OceanDB",
+	}
+
 	return &Server{
-		templates: tmpl,
-		sessions:  make(map[string]*ConnectionSession),
+		templates:       tmpl,
+		sessions:        make(map[string]*ConnectionSession),
+		customDatabases: make(map[string]DatabaseFactory),
+		builtinTypes:    builtinTypes,
 	}, nil
+}
+
+// AddDatabase 添加自定义数据库类型
+// name: 数据库类型标识（如 "custom_db"）
+// factory: 创建数据库实例的工厂函数
+func (s *Server) AddDatabase(name string, factory DatabaseFactory) {
+	s.customDbMutex.Lock()
+	defer s.customDbMutex.Unlock()
+	s.customDatabases[name] = factory
+}
+
+// GetDatabaseTypes 获取所有可用的数据库类型列表
+func (s *Server) GetDatabaseTypes(w http.ResponseWriter, r *http.Request) {
+	s.customDbMutex.RLock()
+	defer s.customDbMutex.RUnlock()
+
+	types := make([]DatabaseTypeInfo, 0)
+
+	// 添加内置类型
+	for dbType, displayName := range s.builtinTypes {
+		types = append(types, DatabaseTypeInfo{
+			Type:        dbType,
+			DisplayName: displayName,
+		})
+	}
+
+	// 添加自定义类型
+	for dbType := range s.customDatabases {
+		// 如果自定义类型不在内置类型中，添加它
+		if _, exists := s.builtinTypes[dbType]; !exists {
+			// 使用类型名作为显示名称，或者可以扩展为支持自定义显示名称
+			types = append(types, DatabaseTypeInfo{
+				Type:        dbType,
+				DisplayName: dbType, // 可以后续扩展支持自定义显示名称
+			})
+		}
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"types":   types,
+	})
 }
 
 // generateConnectionID 生成唯一的连接ID
@@ -105,26 +174,38 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 
 	// 创建新连接
 	var db database.Database
-	switch info.Type {
-	case "mysql":
-		db = database.NewMySQL()
-	case "dameng":
-		db = database.NewBaseMysqlBasedDB("dameng")
-	case "openguass":
-		db = database.NewBaseMysqlBasedDB("openguass")
-	case "vastbase":
-		db = database.NewBaseMysqlBasedDB("vastbase")
-	case "kingbase":
-		db = database.NewBaseMysqlBasedDB("kingbase")
-	case "oceandb":
-		db = database.NewBaseMysqlBasedDB("oceandb")
-	case "sqlite":
-		db = database.NewSQLite3()
-	case "postgres":
-		db = database.NewPostgreSQL()
-	default:
-		http.Error(w, "不支持的数据库类型", http.StatusBadRequest)
-		return
+
+	// 先检查是否为自定义数据库类型
+	s.customDbMutex.RLock()
+	factory, isCustom := s.customDatabases[info.Type]
+	s.customDbMutex.RUnlock()
+
+	if isCustom {
+		// 使用自定义数据库工厂函数
+		db = factory()
+	} else {
+		// 使用内置数据库类型
+		switch info.Type {
+		case "mysql":
+			db = database.NewMySQL()
+		case "dameng":
+			db = database.NewBaseMysqlBasedDB("dameng")
+		case "openguass":
+			db = database.NewBaseMysqlBasedDB("openguass")
+		case "vastbase":
+			db = database.NewBaseMysqlBasedDB("vastbase")
+		case "kingbase":
+			db = database.NewBaseMysqlBasedDB("kingbase")
+		case "oceandb":
+			db = database.NewBaseMysqlBasedDB("oceandb")
+		case "sqlite":
+			db = database.NewSQLite3()
+		case "postgres", "postgresql":
+			db = database.NewPostgreSQL()
+		default:
+			http.Error(w, fmt.Sprintf("不支持的数据库类型: %s", info.Type), http.StatusBadRequest)
+			return
+		}
 	}
 
 	// 构建DSN
@@ -717,6 +798,9 @@ func (s *Server) RegisterRoutes(router Router) {
 
 	// 静态文件
 	router.Static("/static/", "static")
+
+	// 获取数据库类型列表
+	router.HandleFunc("/api/database/types", s.GetDatabaseTypes)
 }
 
 // Start 启动服务器

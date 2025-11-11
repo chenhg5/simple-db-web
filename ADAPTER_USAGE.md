@@ -296,10 +296,47 @@ func main() {
 4. **静态文件**：默认路径为 `static/` 目录
 5. **路由前缀**：使用 `NewPrefixRouter` 可以为任何适配器添加前缀支持
 
+## 添加自定义数据库类型
+
+可以通过 `AddDatabase` 方法动态注册自定义数据库类型：
+
+```go
+package main
+
+import (
+    "dbweb/database"
+    "dbweb/handlers"
+    "log"
+)
+
+func main() {
+    server, err := handlers.NewServer()
+    if err != nil {
+        log.Fatalf("创建服务器失败: %v", err)
+    }
+
+    // 添加自定义数据库类型
+    server.AddDatabase("custom_db", func() database.Database {
+        // 返回实现了 database.Database 接口的实例
+        return &MyCustomDatabase{}
+    })
+
+    server.SetupRoutes()
+    server.Start(":8080")
+}
+```
+
+**注意事项**：
+- 自定义数据库类型必须实现 `database.Database` 接口的所有方法
+- 数据库类型标识（name）应该是唯一的
+- 前端会自动从 `/api/database/types` 获取所有可用的数据库类型（包括内置和自定义的）
+
 ## 优势
 
 1. **解耦**：业务逻辑与 Web 框架解耦
 2. **灵活**：可以轻松切换或同时支持多个框架
-3. **可扩展**：添加新框架支持只需实现 `Router` 接口
+3. **可扩展**：
+   - 支持动态添加自定义数据库类型
+   - 添加新框架支持只需实现 `Router` 接口
 4. **向后兼容**：不影响现有代码
 

@@ -382,8 +382,53 @@ closeClearAllConnectionsModal.addEventListener('click', () => {
     clearAllConnectionsModal.style.display = 'none';
 });
 
+// 存储数据库类型列表
+let databaseTypes = [];
+
+// 加载数据库类型列表
+async function loadDatabaseTypes() {
+    try {
+        const response = await fetch('/api/database/types');
+        const data = await response.json();
+        
+        if (data.success && data.types) {
+            databaseTypes = data.types;
+            updateDatabaseTypeSelect();
+        }
+    } catch (error) {
+        console.error('加载数据库类型失败:', error);
+        // 如果加载失败，使用默认类型
+        databaseTypes = [
+            { type: 'mysql', display_name: 'MySQL' },
+            { type: 'postgresql', display_name: 'PostgreSQL' },
+            { type: 'sqlite', display_name: 'SQLite' }
+        ];
+        updateDatabaseTypeSelect();
+    }
+}
+
+// 更新数据库类型选择框
+function updateDatabaseTypeSelect() {
+    const dbTypeSelect = document.getElementById('dbType');
+    if (!dbTypeSelect) return;
+    
+    // 清空现有选项
+    dbTypeSelect.innerHTML = '';
+    
+    // 添加数据库类型选项
+    databaseTypes.forEach(dbType => {
+        const option = document.createElement('option');
+        option.value = dbType.type;
+        option.textContent = dbType.display_name;
+        dbTypeSelect.appendChild(option);
+    });
+}
+
 // 页面加载时加载保存的连接
 loadSavedConnections();
+
+// 页面加载时加载数据库类型列表
+loadDatabaseTypes();
 
 // 页面加载时尝试恢复连接
 async function restoreConnection() {
@@ -567,19 +612,28 @@ function updateConnectionInfo(info) {
     }
     
     let infoText = '';
-    const dbTypeNames = {
-        'mysql': 'MySQL',
-        'postgres': 'PostgreSQL',
-        'postgresql': 'PostgreSQL',
-        'sqlite': 'SQLite',
-        'dameng': '达梦',
-        'openguass': 'OpenGauss',
-        'vastbase': 'Vastbase',
-        'kingbase': '人大金仓',
-        'oceandb': 'OceanDB'
-    };
-    
-    const dbTypeName = dbTypeNames[info.type] || info.type;
+    // 从数据库类型列表中查找显示名称
+    let dbTypeName = info.type;
+    if (databaseTypes.length > 0) {
+        const dbType = databaseTypes.find(t => t.type === info.type);
+        if (dbType) {
+            dbTypeName = dbType.display_name;
+        }
+    } else {
+        // 如果列表未加载，使用默认映射
+        const dbTypeNames = {
+            'mysql': 'MySQL',
+            'postgres': 'PostgreSQL',
+            'postgresql': 'PostgreSQL',
+            'sqlite': 'SQLite',
+            'dameng': '达梦',
+            'openguass': 'OpenGauss',
+            'vastbase': 'Vastbase',
+            'kingbase': '人大金仓',
+            'oceandb': 'OceanDB'
+        };
+        dbTypeName = dbTypeNames[info.type] || info.type;
+    }
     
     if (info.dsn) {
         // DSN 模式：尝试从 DSN 中提取信息
