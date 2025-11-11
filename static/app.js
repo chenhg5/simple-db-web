@@ -18,6 +18,7 @@ const disconnectBtn = document.getElementById('disconnectBtn');
 const tablesPanel = document.getElementById('tablesPanel');
 const tableList = document.getElementById('tableList');
 const refreshTables = document.getElementById('refreshTables');
+const tableFilter = document.getElementById('tableFilter');
 const tabs = document.querySelectorAll('.tab');
 const tabContents = document.querySelectorAll('.tab-content');
 const dataTab = document.getElementById('dataTab');
@@ -208,13 +209,28 @@ databaseSelect.addEventListener('change', async (e) => {
     await switchDatabase(e.target.value);
 });
 
+// 存储所有表名（用于筛选）
+let allTables = [];
+
 // 显示表列表
 function displayTables(tables) {
+    allTables = tables;
+    filterTables();
+    tablesPanel.style.display = 'block';
+}
+
+// 筛选表列表
+function filterTables() {
+    const filterText = tableFilter.value.trim();
+    const filteredTables = filterText 
+        ? allTables.filter(table => table.toLowerCase().startsWith(filterText.toLowerCase()))
+        : allTables;
+    
     tableList.innerHTML = '';
-    if (tables.length === 0) {
+    if (filteredTables.length === 0) {
         tableList.innerHTML = '<li style="padding: 1rem; color: var(--text-secondary);">没有找到表</li>';
     } else {
-        tables.forEach(table => {
+        filteredTables.forEach(table => {
             const li = document.createElement('li');
             li.className = 'table-item';
             li.textContent = table;
@@ -222,8 +238,10 @@ function displayTables(tables) {
             tableList.appendChild(li);
         });
     }
-    tablesPanel.style.display = 'block';
 }
+
+// 表筛选输入框事件
+tableFilter.addEventListener('input', filterTables);
 
 // 断开连接
 disconnectBtn.addEventListener('click', async () => {
@@ -245,6 +263,10 @@ disconnectBtn.addEventListener('click', async () => {
             tablesPanel.style.display = 'none';
             currentTable = null;
             databaseSelect.innerHTML = '<option value="">请选择数据库...</option>';
+            // 清空筛选框和表列表
+            tableFilter.value = '';
+            allTables = [];
+            currentColumns = [];
             showNotification('已断开连接', 'success');
         } else {
             showNotification(data.message || '断开连接失败', 'error');
@@ -261,19 +283,7 @@ async function loadTables() {
         const data = await response.json();
         
         if (data.success) {
-            tableList.innerHTML = '';
-            if (data.tables.length === 0) {
-                tableList.innerHTML = '<li style="padding: 1rem; color: var(--text-secondary);">没有找到表</li>';
-            } else {
-                data.tables.forEach(table => {
-                    const li = document.createElement('li');
-                    li.className = 'table-item';
-                    li.textContent = table;
-                    li.addEventListener('click', () => selectTable(table));
-                    tableList.appendChild(li);
-                });
-            }
-            tablesPanel.style.display = 'block';
+            displayTables(data.tables || []);
         }
     } catch (error) {
         showNotification('加载表列表失败: ' + error.message, 'error');
@@ -302,16 +312,39 @@ async function selectTable(tableName) {
     await loadTableSchema();
 }
 
+// 存储列信息（用于排序）
+let currentColumns = [];
+
 // 加载表数据
 async function loadTableData() {
     if (!currentTable) return;
     
     try {
+        // 先获取列信息，确保按正确顺序显示
+        const columnsResponse = await fetch(`/api/table/columns?table=${currentTable}`);
+        const columnsData = await columnsResponse.json();
+        
+        if (columnsData.success) {
+            currentColumns = columnsData.columns.map(col => col.name);
+        }
+        
+        // 然后获取数据
         const response = await fetch(`/api/table/data?table=${currentTable}&page=${currentPage}&pageSize=${pageSize}`);
         const data = await response.json();
         
         if (data.success) {
-            displayTableData(data.data, data.total);
+            // 按照 data.columns 的顺序显示数据
+            const dataByColumns = [];
+            const columns = data.data.columns;            
+            data.data.data.forEach(row => {
+                const rowByColumns = {};
+                columns.forEach(col => {
+                    rowByColumns[col.name] = row[col.name];
+                });
+                dataByColumns.push(rowByColumns);
+            });
+
+            displayTableData(dataByColumns, data.total);
             updatePagination(data.total, data.page, data.pageSize);
         }
     } catch (error) {
@@ -321,55 +354,104 @@ async function loadTableData() {
 
 // 显示表数据
 function displayTableData(rows, total) {
+    // 清空表格内容，避免DOM操作冲突
+    while (dataTableHead.firstChild) {
+        dataTableHead.removeChild(dataTableHead.firstChild);
+    }
+    while (dataTableBody.firstChild) {
+        dataTableBody.removeChild(dataTableBody.firstChild);
+    }
+    
     if (rows.length === 0) {
-        dataTableHead.innerHTML = '';
-        dataTableBody.innerHTML = '<tr><td colspan="100%" style="text-align: center; padding: 2rem; color: var(--text-secondary);">没有数据</td></tr>';
+        const emptyRow = document.createElement('tr');
+        const emptyCell = document.createElement('td');
+        emptyCell.colSpan = 100;
+        emptyCell.style.cssText = 'text-align: center; padding: 2rem; color: var(--text-secondary);';
+        emptyCell.textContent = '没有数据';
+        emptyRow.appendChild(emptyCell);
+        dataTableBody.appendChild(emptyRow);
         return;
     }
     
-    // 获取列名
-    const columns = Object.keys(rows[0]);
+    // 获取列名，严格按照 currentColumns 的顺序
+    let columns;
+    if (currentColumns.length > 0) {
+        // 使用获取到的列顺序，只包含数据中实际存在的列
+        const rowKeys = new Set(Object.keys(rows[0]));
+        columns = currentColumns.filter(col => rowKeys.has(col));
+        // 添加数据中存在但列信息中不存在的列（以防万一，放在最后）
+        Object.keys(rows[0]).forEach(key => {
+            if (!columns.includes(key)) {
+                columns.push(key);
+            }
+        });
+    } else {
+        // 如果没有列信息，使用对象键（降级方案）
+        columns = Object.keys(rows[0]);
+    }
     
     // 创建表头
-    let headHTML = '<tr>';
+    const headRow = document.createElement('tr');
     columns.forEach(col => {
-        headHTML += `<th>${escapeHtml(col)}</th>`;
+        const th = document.createElement('th');
+        th.textContent = col;
+        headRow.appendChild(th);
     });
-    headHTML += '<th style="width: 150px;">操作</th>';
-    headHTML += '</tr>';
-    dataTableHead.innerHTML = headHTML;
+    const actionTh = document.createElement('th');
+    actionTh.style.width = '150px';
+    actionTh.textContent = '操作';
+    headRow.appendChild(actionTh);
+    dataTableHead.appendChild(headRow);
     
     // 创建表体
-    let bodyHTML = '';
     rows.forEach((row, index) => {
-        bodyHTML += '<tr>';
+        const bodyRow = document.createElement('tr');
+        
+        // 按照列顺序添加单元格
         columns.forEach(col => {
+            const td = document.createElement('td');
             const value = row[col];
-            bodyHTML += `<td>${value === null ? '<span style="color: var(--text-secondary);">NULL</span>' : escapeHtml(String(value))}</td>`;
+            if (value === null || value === undefined) {
+                const nullSpan = document.createElement('span');
+                nullSpan.style.color = 'var(--text-secondary)';
+                nullSpan.textContent = 'NULL';
+                td.appendChild(nullSpan);
+            } else {
+                td.textContent = String(value);
+            }
+            bodyRow.appendChild(td);
         });
-        // 使用HTML实体编码来安全地存储JSON数据
-        const rowData = JSON.stringify(row).replace(/"/g, '&quot;');
-        bodyHTML += `<td>
-            <button class="btn btn-secondary action-btn edit-row-btn" data-row="${rowData}">编辑</button>
-            <button class="btn btn-danger action-btn delete-row-btn" data-row="${rowData}">删除</button>
-        </td>`;
-        bodyHTML += '</tr>';
+        
+        // 添加操作列
+        const actionTd = document.createElement('td');
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-secondary action-btn edit-row-btn';
+        editBtn.textContent = '编辑';
+        editBtn.dataset.row = JSON.stringify(row);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger action-btn delete-row-btn';
+        deleteBtn.textContent = '删除';
+        deleteBtn.dataset.row = JSON.stringify(row);
+        
+        actionTd.appendChild(editBtn);
+        actionTd.appendChild(deleteBtn);
+        bodyRow.appendChild(actionTd);
+        
+        dataTableBody.appendChild(bodyRow);
     });
-    dataTableBody.innerHTML = bodyHTML;
     
     // 绑定事件监听器
     dataTableBody.querySelectorAll('.edit-row-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            const rowDataStr = this.getAttribute('data-row').replace(/&quot;/g, '"');
-            const rowData = JSON.parse(rowDataStr);
+            const rowData = JSON.parse(this.dataset.row);
             editRow(rowData);
         });
     });
     
     dataTableBody.querySelectorAll('.delete-row-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            const rowDataStr = this.getAttribute('data-row').replace(/&quot;/g, '"');
-            const rowData = JSON.parse(rowDataStr);
+            const rowData = JSON.parse(this.dataset.row);
             deleteRow(rowData);
         });
     });

@@ -207,10 +207,18 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("获取数据失败: %v", err), http.StatusInternalServerError)
 		return
 	}
+	columns, err := db.GetTableColumns(tableName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("获取列信息失败: %v", err), http.StatusInternalServerError)
+		return
+	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":  true,
-		"data":     data,
+		"success": true,
+		"data": map[string]interface{}{
+			"data":    data,
+			"columns": columns,
+		},
 		"total":    total,
 		"page":     page,
 		"pageSize": pageSize,

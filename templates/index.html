@@ -41,12 +41,12 @@
                                 <option value="dsn">DSN连接字符串</option>
                             </select>
                         </div>
-                        <div id="dsnGroup" class="form-group">
+                        <div id="dsnGroup" class="form-group" style="display: none;">
                             <label>DSN</label>
                             <input type="text" id="dsn" class="form-control" 
                                    placeholder="user:password@tcp(host:port)/">
                         </div>
-                        <div id="formGroup" class="form-group" style="display: none;">
+                        <div id="formGroup" class="form-group">
                             <label>主机</label>
                             <input type="text" id="host" class="form-control" placeholder="localhost">
                             <label>端口</label>
@@ -78,6 +78,9 @@
                     <div class="panel-header">
                         <h2 class="panel-title">数据表</h2>
                         <button class="btn-icon" id="refreshTables" title="刷新">🔄</button>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.5rem;">
+                        <input type="text" id="tableFilter" class="form-control" placeholder="筛选表名..." style="margin-bottom: 0;">
                     </div>
                     <ul class="table-list" id="tableList"></ul>
                 </div>
