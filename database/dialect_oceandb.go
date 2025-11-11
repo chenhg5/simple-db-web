@@ -1,18 +1,17 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"regexp"
 	"strings"
-
-	"ksogit.kingsoft.net/kgo/mysql"
 )
 
 type OceandbDialect struct {
 	*BaseDialect
 }
 
-func NewOceandbDialect(db mysql.DBAdapter) *OceandbDialect {
+func NewOceandbDialect(db *sql.DB) *OceandbDialect {
 	return &OceandbDialect{BaseDialect: NewBaseDialect(db)}
 }
 
@@ -21,13 +20,21 @@ func (m *OceandbDialect) GetTableSchema(tableName string) (string, error) {
 		Table       string `db:"Table"`
 		CreateTable string `db:"Create Table"`
 	}
-	var createTable = make([]CreateTable, 0)
-	err := m.db.Query(&createTable, fmt.Sprintf("SHOW CREATE TABLE `%s`", tableName))
+	var createTables = make([]CreateTable, 0)
+	rows, err := m.db.Query(fmt.Sprintf("SHOW CREATE TABLE `%s`", tableName))
 	if err != nil {
 		return "", fmt.Errorf("查询表结构失败: %w", err)
 	}
+	defer rows.Close()
+	for rows.Next() {
+		var createTable CreateTable
+		if err := rows.Scan(&createTable.Table, &createTable.CreateTable); err != nil {
+			return "", err
+		}
+		createTables = append(createTables, createTable)
+	}
 
-	return createTable[0].CreateTable, nil
+	return createTables[0].CreateTable, nil
 }
 
 func (m *OceandbDialect) GetTableColumns(tableName string) ([]ColumnInfo, error) {
@@ -67,14 +74,14 @@ func getColumnsFroMySQLLikeSchema(schema string) ([]ColumnInfo, error) {
 	if tableStart < 0 {
 		return columns, nil
 	}
-	
+
 	// 找到表定义的开始括号
 	parenStart := strings.Index(schema[tableStart:], "(")
 	if parenStart < 0 {
 		return columns, nil
 	}
 	tableDefStart := tableStart + parenStart + 1
-	
+
 	// 找到表定义的结束括号
 	parenCount := 1
 	tableDefEnd := tableDefStart
@@ -89,10 +96,10 @@ func getColumnsFroMySQLLikeSchema(schema string) ([]ColumnInfo, error) {
 			}
 		}
 	}
-	
+
 	// 只处理表定义括号内的内容
 	tableDef := schema[tableDefStart:tableDefEnd]
-	
+
 	// 匹配列定义（在表定义括号内）
 	colDefPattern := regexp.MustCompile("`([^`]+)`\\s+([^`]+?)(?:\\s+NOT\\s+NULL|\\s+AUTO_INCREMENT|\\s+DEFAULT|\\s+COMMENT|,|\\n|$)")
 	allMatches := colDefPattern.FindAllStringSubmatch(tableDef, -1)
@@ -103,7 +110,7 @@ func getColumnsFroMySQLLikeSchema(schema string) ([]ColumnInfo, error) {
 		}
 
 		colName := match[1]
-		
+
 		// 找到该列定义在 tableDef 中的位置
 		colDefStart := strings.Index(tableDef, "`"+colName+"`")
 		if colDefStart < 0 {
@@ -116,7 +123,7 @@ func getColumnsFroMySQLLikeSchema(schema string) ([]ColumnInfo, error) {
 			(strings.Contains(strings.ToLower(beforeText), "key `") && !strings.Contains(strings.ToLower(beforeText), "primary key")) {
 			continue
 		}
-		
+
 		// 检查是否是表名（CREATE TABLE `table_name` 中的表名）
 		// 如果前面是 CREATE TABLE，则跳过
 		beforeLower := strings.ToLower(beforeText)
@@ -138,7 +145,7 @@ func getColumnsFroMySQLLikeSchema(schema string) ([]ColumnInfo, error) {
 			colDefEnd = nextColMatch[0]
 		}
 		colDefText := strings.TrimSpace(remaining[:colDefEnd])
-		
+
 		// 提取列定义部分（去掉列名）
 		colDefOnly := strings.TrimSpace(strings.TrimPrefix(colDefText, "`"+colName+"`"))
 

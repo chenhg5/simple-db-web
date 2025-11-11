@@ -1,55 +1,91 @@
 package database
 
 import (
-	"context"
 	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
 
-	"github.com/jmoiron/sqlx"
-	"ksogit.kingsoft.net/chat/lib/xmysql"
-	xmysqlv2 "ksogit.kingsoft.net/chat/lib/xmysql/v2"
-	"ksogit.kingsoft.net/kgo/mysql"
+	mysqlDriver "github.com/go-sql-driver/mysql"
 )
 
 type BaseMysqlBasedDB struct {
-	db      mysql.DBAdapter
+	*MySQL
 	dialect Dialect
 
-	dbConfig    *xmysql.Database
 	dialectType string
+	dbConfig    *DBConfig
+}
+
+type DBConfig struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	Database string `json:"database"`
+}
+
+func (m *DBConfig) BuildDSN() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local", m.User, m.Password, m.Host, m.Port, m.Database)
+}
+
+func GetDBConfigFromDSN(dsn string) (*DBConfig, error) {
+	parsedDSN, err := mysqlDriver.ParseDSN(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("解析DSN失败: %w", err)
+	}
+	host := parsedDSN.Addr
+	addrs := strings.Split(parsedDSN.Addr, ":")
+	port := 3306
+	if len(addrs) > 1 {
+		port, err = strconv.Atoi(addrs[1])
+		if err != nil {
+			return nil, err
+		}
+		host = addrs[0]
+	}
+	user := parsedDSN.User
+	pwd, err := url.PathUnescape(parsedDSN.Passwd)
+	if err != nil {
+		return nil, err
+	}
+	password := pwd
+	database := parsedDSN.DBName
+	return &DBConfig{
+		Host:     host,
+		Port:     port,
+		User:     user,
+		Password: password,
+		Database: database,
+	}, nil
 }
 
 func NewBaseMysqlBasedDB(dialectType string) *BaseMysqlBasedDB {
-	return &BaseMysqlBasedDB{dialectType: dialectType}
+	return &BaseMysqlBasedDB{dialectType: dialectType, MySQL: NewMySQL()}
 }
 
 // Connect 建立MySQL连接
 func (m *BaseMysqlBasedDB) Connect(dsn string) error {
-	dbConfig, err := xmysql.GetDatabaseFromDSN(dsn)
+	err := m.MySQL.Connect(dsn)
 	if err != nil {
 		return err
 	}
-	return m.ConnectWithConfig(dbConfig)
-}
-
-func formatDSN(dbConfig *xmysql.Database) string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local", dbConfig.UserName, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
-}
-
-func (m *BaseMysqlBasedDB) ConnectWithConfig(dbConfig *xmysql.Database) error {
-	db, err := xmysqlv2.NewDBBuilder(dbConfig, &xmysqlv2.ServiceInfo{
-		LocalEnv:    "local",
-		DeployEnv:   "prod",
-		ServiceName: "logic",
-	}).WithNameSuffix("master").Build(context.Background())
+	dbConfig, err := GetDBConfigFromDSN(dsn)
 	if err != nil {
 		return err
 	}
-	if m.db != nil {
-		m.db.Close()
-	}
-	m.db = db
-	m.dialect = GetDialectByType(m.dialectType, db)
 	m.dbConfig = dbConfig
+	m.dialect = GetDialectByType(m.dialectType, m.MySQL.db)
+	return nil
+}
+
+func (m *BaseMysqlBasedDB) ConnectWithConfig(dbConfig *DBConfig) error {
+	err := m.MySQL.Connect(dbConfig.BuildDSN())
+	if err != nil {
+		return err
+	}
+	m.dbConfig = dbConfig
+	m.dialect = GetDialectByType(m.dialectType, m.MySQL.db)
 	return nil
 }
 
@@ -76,95 +112,6 @@ func (m *BaseMysqlBasedDB) GetTableColumns(tableName string) ([]ColumnInfo, erro
 	return m.dialect.GetTableColumns(tableName)
 }
 
-// ExecuteQuery 执行查询
-func (m *BaseMysqlBasedDB) ExecuteQuery(query string) ([]map[string]interface{}, error) {
-	var rows = make([]map[string]interface{}, 0)
-	sqlxDB, err := sqlx.Open("mysql", formatDSN(m.dbConfig))
-	if err != nil {
-		return nil, fmt.Errorf("打开数据库连接失败: %w", err)
-	}
-	defer sqlxDB.Close()
-	scanRows, err := sqlxDB.Queryx(query)
-	if err != nil {
-		return nil, fmt.Errorf("执行查询失败: %w", err)
-	}
-	for scanRows.Next() {
-		row := make(map[string]interface{})
-		err = scanRows.MapScan(row)
-		if err != nil {
-			return nil, fmt.Errorf("扫描数据失败: %w", err)
-		}
-		for k := range row {
-			if value, ok := row[k].([]byte); ok {
-				row[k] = string(value)
-			}
-		}
-		rows = append(rows, row)
-	}
-	return rows, scanRows.Err()
-}
-
-// ExecuteDelete 执行删除
-func (m *BaseMysqlBasedDB) ExecuteDelete(query string) (int64, error) {
-	res, err := m.db.Exec(query)
-	if err != nil {
-		return 0, fmt.Errorf("执行删除失败: %w", err)
-	}
-	return res.RowsAffected, nil
-}
-
-// ExecuteInsert 执行插入
-func (m *BaseMysqlBasedDB) ExecuteInsert(query string) (int64, error) {
-	res, err := m.db.Exec(query)
-	if err != nil {
-		return 0, fmt.Errorf("执行插入失败: %w", err)
-	}
-	return res.RowsAffected, nil
-}
-
-func (m *BaseMysqlBasedDB) ExecuteUpdate(query string) (int64, error) {
-	res, err := m.db.Exec(query)
-	if err != nil {
-		return 0, fmt.Errorf("执行更新失败: %w", err)
-	}
-	return res.RowsAffected, nil
-}
-
-// GetTableData 获取表数据（分页）
-func (m *BaseMysqlBasedDB) GetTableData(tableName string, page, pageSize int) ([]map[string]interface{}, int64, error) {
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tableName)
-	total, err := m.db.QueryInt64(countQuery)
-	if err != nil {
-		return nil, 0, fmt.Errorf("查询总数失败: %w", err)
-	}
-	offset := (page - 1) * pageSize
-	query := fmt.Sprintf("SELECT * FROM `%s` LIMIT %d OFFSET %d", tableName, pageSize, offset)
-	var rows = make([]map[string]interface{}, 0)
-	sqlxDB, err := sqlx.Open("mysql", formatDSN(m.dbConfig))
-	if err != nil {
-		return nil, 0, fmt.Errorf("打开数据库连接失败: %w", err)
-	}
-	defer sqlxDB.Close()
-	scanRows, err := sqlxDB.Queryx(query)
-	if err != nil {
-		return nil, 0, fmt.Errorf("查询数据失败: %w", err)
-	}
-	for scanRows.Next() {
-		row := make(map[string]interface{})
-		err = scanRows.MapScan(row)
-		if err != nil {
-			return nil, 0, fmt.Errorf("扫描数据失败: %w", err)
-		}
-		for k := range row {
-			if value, ok := row[k].([]byte); ok {
-				row[k] = string(value)
-			}
-		}
-		rows = append(rows, row)
-	}
-	return rows, total, nil
-}
-
 // GetDatabases 获取所有数据库名称
 func (m *BaseMysqlBasedDB) GetDatabases() ([]string, error) {
 	return m.dialect.GetDatabases()
@@ -172,6 +119,6 @@ func (m *BaseMysqlBasedDB) GetDatabases() ([]string, error) {
 
 // SwitchDatabase 切换当前使用的数据库
 func (m *BaseMysqlBasedDB) SwitchDatabase(databaseName string) error {
-	m.dbConfig.DBName = databaseName
+	m.dbConfig.Database = databaseName
 	return m.ConnectWithConfig(m.dbConfig)
 }

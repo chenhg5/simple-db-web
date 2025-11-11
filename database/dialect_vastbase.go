@@ -1,14 +1,12 @@
 package database
 
-import (
-	"ksogit.kingsoft.net/kgo/mysql"
-)
+import "database/sql"
 
 type VastbaseDialect struct {
 	*BaseDialect
 }
 
-func NewVastbaseDialect(db mysql.DBAdapter) *VastbaseDialect {
+func NewVastbaseDialect(db *sql.DB) *VastbaseDialect {
 	return &VastbaseDialect{BaseDialect: NewBaseDialect(db)}
 }
 

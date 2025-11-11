@@ -1,17 +1,16 @@
 package database
 
 import (
+	"database/sql"
 	"regexp"
 	"strings"
-
-	"ksogit.kingsoft.net/kgo/mysql"
 )
 
 type DamengDialect struct {
 	*BaseDialect
 }
 
-func NewDamengDialect(db mysql.DBAdapter) *DamengDialect {
+func NewDamengDialect(db *sql.DB) *DamengDialect {
 	return &DamengDialect{BaseDialect: NewBaseDialect(db)}
 }
 

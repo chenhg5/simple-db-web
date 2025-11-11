@@ -4,11 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-
-	"ksogit.kingsoft.net/kgo/mysql"
 )
 
-func GetDialectByType(dbType string, db mysql.DBAdapter) Dialect {
+func GetDialectByType(dbType string, db *sql.DB) Dialect {
 	switch dbType {
 	case "dameng":
 		return NewDamengDialect(db)
@@ -32,49 +30,82 @@ type Dialect interface {
 }
 
 type BaseDialect struct {
-	db mysql.DBAdapter
+	db *sql.DB
 }
 
-func NewBaseDialect(db mysql.DBAdapter) *BaseDialect {
+func NewBaseDialect(db *sql.DB) *BaseDialect {
 	return &BaseDialect{db: db}
 }
 
 func (m *BaseDialect) GetDatabases() ([]string, error) {
 	var databases []string
-	if err := m.db.Query(&databases, "SHOW DATABASES"); err != nil {
+	rows, err := m.db.Query("SHOW DATABASES")
+	if err != nil {
 		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
 	}
-	return databases, nil
+	defer rows.Close()
+	for rows.Next() {
+		var database string
+		if err := rows.Scan(&database); err != nil {
+			return nil, err
+		}
+		databases = append(databases, database)
+	}
+	return databases, rows.Err()
 }
 
 // GetTables 获取所有表名
 func (m *BaseDialect) GetTables() ([]string, error) {
 	var tables []string
-	if err := m.db.Query(&tables, "SHOW TABLES"); err != nil {
+	rows, err := m.db.Query("SHOW TABLES")
+	if err != nil {
 		return nil, fmt.Errorf("查询表列表失败: %w", err)
 	}
-	return tables, nil
+	defer rows.Close()
+	for rows.Next() {
+		var table string
+		if err := rows.Scan(&table); err != nil {
+			return nil, err
+		}
+		tables = append(tables, table)
+	}
+	return tables, rows.Err()
 }
 
 // GetTableSchema 获取表结构
 func (m *BaseDialect) GetTableSchema(tableName string) (string, error) {
 	query := fmt.Sprintf("SHOW CREATE TABLE `%s`", tableName)
 	var schemas []string
-	if err := m.db.Query(&schemas, query); err != nil {
+	rows, err := m.db.Query(query)
+	if err != nil {
 		return "", fmt.Errorf("查询表结构失败: %w", err)
 	}
-	if len(schemas) == 0 {
-		return "", fmt.Errorf("表 %s 不存在", tableName)
+	defer rows.Close()
+	for rows.Next() {
+		var schema string
+		if err := rows.Scan(&schema); err != nil {
+			return "", err
+		}
+		schemas = append(schemas, schema)
 	}
-	return schemas[0], nil
+	return strings.Join(schemas, "\n"), rows.Err()
 }
 
 // GetTableColumns 获取表的列信息
 func (m *BaseDialect) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 	query := fmt.Sprintf("DESCRIBE `%s`", tableName)
 	var rows []map[string]interface{}
-	if err := m.db.Query(&rows, query); err != nil {
+	scanRows, err := m.db.Query(query)
+	if err != nil {
 		return nil, fmt.Errorf("查询列信息失败: %w", err)
+	}
+	defer scanRows.Close()
+	for scanRows.Next() {
+		var r map[string]interface{}
+		if err := scanRows.Scan(&r); err != nil {
+			return nil, err
+		}
+		rows = append(rows, r)
 	}
 	var columns []ColumnInfo
 	for _, r := range rows {

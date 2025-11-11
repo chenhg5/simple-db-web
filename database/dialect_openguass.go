@@ -1,17 +1,16 @@
 package database
 
 import (
+	"database/sql"
 	"regexp"
 	"strings"
-
-	"ksogit.kingsoft.net/kgo/mysql"
 )
 
 type OpenguassDialect struct {
 	*BaseDialect
 }
 
-func NewOpenguassDialect(db mysql.DBAdapter) *OpenguassDialect {
+func NewOpenguassDialect(db *sql.DB) *OpenguassDialect {
 	return &OpenguassDialect{BaseDialect: NewBaseDialect(db)}
 }
 

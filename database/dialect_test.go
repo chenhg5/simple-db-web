@@ -1,11 +1,7 @@
 package database
 
 import (
-	"context"
 	"testing"
-
-	"ksogit.kingsoft.net/chat/lib/xmysql"
-	xmysqlv2 "ksogit.kingsoft.net/chat/lib/xmysql/v2"
 )
 
 func TestDamengDialect_getColumnsFromSchema(t *testing.T) {
@@ -180,69 +176,6 @@ NOT CLUSTER PRIMARY KEY("id")) STORAGE(ON "MAIN", CLUSTERBTR) ;`,
 			}
 		})
 	}
-}
-
-func TestQueryMetaData(t *testing.T) {
-	// host := "10.13.83.245"
-	// user := "vastwps"
-	// password := "r9S3LjQ@C5FkW$"
-	// port := 20142
-	dbname := "kim"
-
-	// KING_DB_HOST 10.13.83.244
-	// KING_DB_PORT 20142
-	// KING_DB_USER TEST01
-	// KING_DB_PASSWD Vh3auMiCSBRdy@*-
-	// host := "10.13.83.244"
-	// user := "TEST01"
-	// password := "Vh3auMiCSBRdy@*-"
-	// port := 20142
-
-	// OCEAN_DB_HOST 10.13.83.246
-	// OCEAN_DB_PORT 20142
-	// OCEAN_DB_USER root@mysqlt#obcluster
-	// OCEAN_DB_PASSWD r9S3LjQ@C5FkW$
-	host := "10.13.83.246"
-	user := "root@mysqlt#obcluster"
-	password := "r9S3LjQ@C5FkW$"
-	port := 20142
-
-	db, err := xmysqlv2.NewDBBuilder(&xmysql.Database{
-		Host: host,
-		UserName: user,
-		Password: password,
-		Port: port,
-		DBName: dbname,
-	}, &xmysqlv2.ServiceInfo{
-		LocalEnv:    "local",
-		DeployEnv:   "prod",
-		ServiceName: "logic",
-	}).WithNameSuffix("master").Build(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to connect to database: %v", err)
-	}
-	defer db.Close()
-
-	var databases []string
-	err = db.Query(&databases, "SHOW DATABASES")
-	if err != nil {
-		t.Fatalf("Failed to get databases: %v", err)
-	}
-	t.Logf("Databases: %+v", databases)
-
-	var tables []string
-	err = db.Query(&tables, "SHOW TABLES")
-	if err != nil {
-		t.Fatalf("Failed to get tables: %v", err)
-	}
-	t.Logf("Tables: %+v", tables)
-
-	var schema string
-	err = db.Query(&schema, "SHOW CREATE TABLE `kim_partition_dbinst`")
-	if err != nil {
-		t.Fatalf("Failed to get schema: %v", err)
-	}
-	t.Logf("Schema: %+v", schema)
 }
 
 func TestOpenguassDialect_getColumnsFromSchema(t *testing.T) {

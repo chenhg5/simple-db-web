@@ -28,8 +28,11 @@ func (m *MySQL) Connect(dsn string) error {
 	if err := db.Ping(); err != nil {
 		return fmt.Errorf("连接数据库失败: %w", err)
 	}
-
+	oldDB := m.db
 	m.db = db
+	if oldDB != nil {
+		oldDB.Close()
+	}
 	return nil
 }
 

@@ -1,14 +1,12 @@
 package database
 
-import (
-	"ksogit.kingsoft.net/kgo/mysql"
-)
+import "database/sql"
 
 type KingbaseDialect struct {
 	*BaseDialect
 }
 
-func NewKingbaseDialect(db mysql.DBAdapter) *KingbaseDialect {
+func NewKingbaseDialect(db *sql.DB) *KingbaseDialect {
 	return &KingbaseDialect{BaseDialect: NewBaseDialect(db)}
 }
 
