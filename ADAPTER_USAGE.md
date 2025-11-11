@@ -304,8 +304,8 @@ func main() {
 package main
 
 import (
-    "dbweb/database"
-    "dbweb/handlers"
+    "github.com/chenhg5/simple-db-web/database"
+    "github.com/chenhg5/simple-db-web/handlers"
     "log"
 )
 
