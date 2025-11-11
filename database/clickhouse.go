@@ -25,7 +25,7 @@ func (c *ClickHouse) Connect(dsn string) error {
 	if !strings.HasPrefix(dsn, "tcp://") && !strings.HasPrefix(dsn, "clickhouse://") {
 		dsn = "tcp://" + dsn
 	}
-	
+
 	db, err := sql.Open("clickhouse", dsn)
 	if err != nil {
 		return fmt.Errorf("打开数据库连接失败: %w", err)
@@ -305,4 +305,3 @@ func BuildClickHouseDSN(info ConnectionInfo) string {
 
 	return dsn
 }
-

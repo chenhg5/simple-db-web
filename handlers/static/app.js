@@ -6,6 +6,10 @@ let currentRowData = null;
 let currentDeleteWhere = null;
 let connectionId = null; // 当前连接的ID
 let connectionInfo = null; // 当前连接信息
+let currentDbType = null; // 当前数据库类型
+
+// API 基础路径，使用相对路径以支持路由前缀
+const API_BASE = './api';
 
 // DOM元素
 const connectionStatus = document.getElementById('connectionStatus');
@@ -280,7 +284,7 @@ async function connectWithSavedConnection(savedConn) {
     const connectBtn = connectionForm.querySelector('button[type="submit"]');
     setButtonLoading(connectBtn, true);
     try {
-        const response = await fetch('/api/connect', {
+        const response = await fetch(`${API_BASE}/connect`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -301,6 +305,7 @@ async function connectWithSavedConnection(savedConn) {
                 dsn: savedConn.dsn || ''
             };
             connectionInfo = connInfo;
+            currentDbType = savedConn.type || 'mysql'; // 保存数据库类型
             sessionStorage.setItem('currentConnectionId', connectionId);
             sessionStorage.setItem('currentConnectionInfo', JSON.stringify(connInfo));
             updateConnectionStatus(true);
@@ -422,7 +427,7 @@ function setButtonLoading(button, loading) {
 // 加载数据库类型列表
 async function loadDatabaseTypes() {
     try {
-        const response = await fetch('/api/database/types');
+        const response = await fetch(`${API_BASE}/database/types`);
         const data = await response.json();
         
         if (data.success && data.types) {
@@ -476,7 +481,7 @@ async function restoreConnection() {
         }
         
         // 检查连接是否仍然有效
-        const response = await fetch('/api/status', {
+        const response = await fetch(`${API_BASE}/status`, {
             headers: {
                 'X-Connection-ID': savedConnectionId
             }
@@ -488,6 +493,7 @@ async function restoreConnection() {
             connectionId = savedConnectionId;
             if (savedConnectionInfo) {
                 connectionInfo = JSON.parse(savedConnectionInfo);
+                currentDbType = data.dbType || connectionInfo.type || null; // 恢复数据库类型
                 updateConnectionInfo(connectionInfo);
             }
             // 有活动的连接，恢复UI状态
@@ -555,7 +561,7 @@ connectionForm.addEventListener('submit', async (e) => {
     }
     
     try {
-        const response = await fetch('/api/connect', {
+        const response = await fetch(`${API_BASE}/connect`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -576,6 +582,7 @@ connectionForm.addEventListener('submit', async (e) => {
                 dsn: mode === 'dsn' ? document.getElementById('dsn').value : ''
             };
             connectionInfo = connInfo;
+            currentDbType = dbType; // 保存数据库类型
             sessionStorage.setItem('currentConnectionId', connectionId);
             sessionStorage.setItem('currentConnectionInfo', JSON.stringify(connInfo));
             updateConnectionStatus(true);
@@ -710,7 +717,7 @@ async function loadDatabases(databases) {
             if (connectionId) {
                 headers['X-Connection-ID'] = connectionId;
             }
-            const response = await fetch('/api/databases', {
+            const response = await fetch(`${API_BASE}/databases`, {
                 headers: headers
             });
             const data = await response.json();
@@ -747,7 +754,7 @@ async function switchDatabase(databaseName) {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/database/switch', {
+        const response = await fetch(`${API_BASE}/database/switch`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({ database: databaseName })
@@ -823,7 +830,7 @@ disconnectBtn.addEventListener('click', async () => {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/disconnect', {
+        const response = await fetch(`${API_BASE}/disconnect`, {
             method: 'POST',
             headers: headers
         });
@@ -868,7 +875,7 @@ async function loadTables() {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/tables', {
+        const response = await fetch(`${API_BASE}/tables`, {
             headers: headers
         });
         const data = await response.json();
@@ -924,7 +931,7 @@ async function loadTableData() {
             headers['X-Connection-ID'] = connectionId;
         }
         // 先获取列信息，确保按正确顺序显示
-        const columnsResponse = await fetch(`/api/table/columns?table=${currentTable}`, {
+        const columnsResponse = await fetch(`${API_BASE}/table/columns?table=${currentTable}`, {
             headers: headers
         });
         const columnsData = await columnsResponse.json();
@@ -934,7 +941,7 @@ async function loadTableData() {
         }
         
         // 然后获取数据
-        const response = await fetch(`/api/table/data?table=${currentTable}&page=${currentPage}&pageSize=${pageSize}`, {
+        const response = await fetch(`${API_BASE}/table/data?table=${currentTable}&page=${currentPage}&pageSize=${pageSize}`, {
             headers: headers
         });
         const data = await response.json();
@@ -951,8 +958,10 @@ async function loadTableData() {
                 dataByColumns.push(rowByColumns);
             });
 
-            displayTableData(dataByColumns, data.total);
-            updatePagination(data.total, data.page, data.pageSize);
+            // 检查是否为 ClickHouse
+            const isClickHouse = data.isClickHouse || false;
+            displayTableData(dataByColumns, data.total, isClickHouse);
+            updatePagination(data.total, data.page, data.pageSize, isClickHouse);
         }
     } catch (error) {
         showNotification('加载数据失败: ' + error.message, 'error');
@@ -963,7 +972,7 @@ async function loadTableData() {
 }
 
 // 显示表数据
-function displayTableData(rows, total) {
+function displayTableData(rows, total, isClickHouse = false) {
     // 清空表格内容，避免DOM操作冲突
     while (dataTableHead.firstChild) {
         dataTableHead.removeChild(dataTableHead.firstChild);
@@ -1007,10 +1016,13 @@ function displayTableData(rows, total) {
         th.textContent = col;
         headRow.appendChild(th);
     });
-    const actionTh = document.createElement('th');
-    actionTh.style.width = '150px';
-    actionTh.textContent = '操作';
-    headRow.appendChild(actionTh);
+    // ClickHouse 不显示操作列
+    if (!isClickHouse) {
+        const actionTh = document.createElement('th');
+        actionTh.style.width = '150px';
+        actionTh.textContent = '操作';
+        headRow.appendChild(actionTh);
+    }
     dataTableHead.appendChild(headRow);
     
     // 创建表体
@@ -1032,21 +1044,23 @@ function displayTableData(rows, total) {
             bodyRow.appendChild(td);
         });
         
-        // 添加操作列
-        const actionTd = document.createElement('td');
-        const editBtn = document.createElement('button');
-        editBtn.className = 'btn btn-secondary action-btn edit-row-btn';
-        editBtn.textContent = '编辑';
-        editBtn.dataset.row = JSON.stringify(row);
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn btn-danger action-btn delete-row-btn';
-        deleteBtn.textContent = '删除';
-        deleteBtn.dataset.row = JSON.stringify(row);
-        
-        actionTd.appendChild(editBtn);
-        actionTd.appendChild(deleteBtn);
-        bodyRow.appendChild(actionTd);
+        // ClickHouse 不显示操作列
+        if (!isClickHouse) {
+            const actionTd = document.createElement('td');
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn-secondary action-btn edit-row-btn';
+            editBtn.textContent = '编辑';
+            editBtn.dataset.row = JSON.stringify(row);
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-danger action-btn delete-row-btn';
+            deleteBtn.textContent = '删除';
+            deleteBtn.dataset.row = JSON.stringify(row);
+            
+            actionTd.appendChild(editBtn);
+            actionTd.appendChild(deleteBtn);
+            bodyRow.appendChild(actionTd);
+        }
         
         dataTableBody.appendChild(bodyRow);
     });
@@ -1068,7 +1082,14 @@ function displayTableData(rows, total) {
 }
 
 // 更新分页
-function updatePagination(total, page, pageSize) {
+function updatePagination(total, page, pageSize, isClickHouse = false) {
+    if (isClickHouse) {
+        // ClickHouse 不支持分页，只显示提示信息
+        paginationInfo.textContent = `显示前 10 条数据（ClickHouse 不支持分页）`;
+        pagination.innerHTML = '';
+        return;
+    }
+    
     const totalPages = Math.ceil(total / pageSize);
     
     paginationInfo.textContent = `共 ${total} 条，第 ${page}/${totalPages} 页`;
@@ -1103,7 +1124,7 @@ async function loadTableSchema() {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch(`/api/table/schema?table=${currentTable}`, {
+        const response = await fetch(`${API_BASE}/table/schema?table=${currentTable}`, {
             headers: headers
         });
         const data = await response.json();
@@ -1155,7 +1176,7 @@ executeQuery.addEventListener('click', async () => {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/query', {
+        const response = await fetch(`${API_BASE}/query`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({ query })
@@ -1292,7 +1313,7 @@ saveEdit.addEventListener('click', async () => {
         if (connectionId) {
             requestHeaders['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/row/update', {
+        const response = await fetch(`${API_BASE}/row/update`, {
             method: 'POST',
             headers: requestHeaders,
             body: JSON.stringify({
@@ -1357,7 +1378,7 @@ confirmDelete.addEventListener('click', async () => {
         if (connectionId) {
             headers['X-Connection-ID'] = connectionId;
         }
-        const response = await fetch('/api/row/delete', {
+        const response = await fetch(`${API_BASE}/row/delete`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({
