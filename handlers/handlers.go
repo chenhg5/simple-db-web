@@ -16,13 +16,48 @@ import (
 	"github.com/chenhg5/simple-db-web/database"
 )
 
-// ConnectionSession 连接会话信息
+// SessionData 会话数据（可序列化）
+// 用于持久化存储，不包含实际的数据库连接对象
+type SessionData struct {
+	ConnectionInfo  database.ConnectionInfo `json:"connection_info"`  // 连接信息（用于重建连接）
+	DSN            string                  `json:"dsn"`              // DSN连接字符串
+	DbType         string                  `json:"db_type"`          // 数据库类型
+	CurrentDatabase string                 `json:"current_database"` // 当前数据库
+	CurrentTable    string                 `json:"current_table"`    // 当前表
+	CreatedAt       time.Time              `json:"created_at"`       // 创建时间
+}
+
+// ConnectionSession 连接会话信息（运行时对象）
+// 包含实际的数据库连接对象
 type ConnectionSession struct {
 	db              database.Database
 	dbType          string // 数据库类型，用于前端判断
 	currentDatabase string
 	currentTable    string
 	createdAt       time.Time
+	sessionData     *SessionData // 保存原始数据，用于持久化
+}
+
+// SessionStorage 会话存储接口
+// 允许外部项目实现自定义的持久化存储（如Redis、MySQL等）
+type SessionStorage interface {
+	// Get 获取会话数据
+	// connectionID: 连接ID
+	// 返回会话数据，如果不存在返回nil和error
+	Get(connectionID string) (*SessionData, error)
+
+	// Set 保存会话数据
+	// connectionID: 连接ID
+	// data: 会话数据
+	// ttl: 过期时间（秒），0表示不过期
+	Set(connectionID string, data *SessionData, ttl time.Duration) error
+
+	// Delete 删除会话数据
+	// connectionID: 连接ID
+	Delete(connectionID string) error
+
+	// Close 关闭存储连接（如果需要）
+	Close() error
 }
 
 // DatabaseFactory 数据库工厂函数类型
@@ -34,10 +69,62 @@ type DatabaseTypeInfo struct {
 	DisplayName string `json:"display_name"` // 显示名称
 }
 
+// MemorySessionStorage 内存会话存储（默认实现）
+// 适用于单实例部署，多实例部署请使用Redis等外部存储
+type MemorySessionStorage struct {
+	sessions map[string]*SessionData
+	mutex    sync.RWMutex
+}
+
+// NewMemorySessionStorage 创建内存会话存储
+func NewMemorySessionStorage() *MemorySessionStorage {
+	return &MemorySessionStorage{
+		sessions: make(map[string]*SessionData),
+	}
+}
+
+// Get 获取会话数据
+func (m *MemorySessionStorage) Get(connectionID string) (*SessionData, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	session, exists := m.sessions[connectionID]
+	if !exists {
+		return nil, fmt.Errorf("会话不存在")
+	}
+	// 返回副本，避免并发修改
+	sessionCopy := *session
+	return &sessionCopy, nil
+}
+
+// Set 保存会话数据
+func (m *MemorySessionStorage) Set(connectionID string, data *SessionData, ttl time.Duration) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	// 创建副本保存
+	dataCopy := *data
+	m.sessions[connectionID] = &dataCopy
+	// 注意：内存存储不支持TTL，如果需要TTL请使用Redis等外部存储
+	return nil
+}
+
+// Delete 删除会话数据
+func (m *MemorySessionStorage) Delete(connectionID string) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	delete(m.sessions, connectionID)
+	return nil
+}
+
+// Close 关闭存储连接（内存存储无需关闭）
+func (m *MemorySessionStorage) Close() error {
+	return nil
+}
+
 // Server 服务器结构
 type Server struct {
 	templates       *template.Template
-	sessions        map[string]*ConnectionSession
+	sessionStorage  SessionStorage              // 会话存储接口
+	sessions        map[string]*ConnectionSession // 运行时会话缓存（包含实际连接）
 	sessionsMutex   sync.RWMutex
 	customDatabases map[string]DatabaseFactory // 自定义数据库类型
 	customDbMutex   sync.RWMutex
@@ -72,10 +159,26 @@ func NewServer() (*Server, error) {
 
 	return &Server{
 		templates:       tmpl,
+		sessionStorage:  NewMemorySessionStorage(), // 默认使用内存存储
 		sessions:        make(map[string]*ConnectionSession),
 		customDatabases: make(map[string]DatabaseFactory),
 		builtinTypes:    builtinTypes,
 	}, nil
+}
+
+// SetSessionStorage 设置自定义会话存储
+// 允许外部项目使用Redis、MySQL等外部存储
+// 示例：
+//   redisStorage := NewRedisSessionStorage(redisClient)
+//   server.SetSessionStorage(redisStorage)
+func (s *Server) SetSessionStorage(storage SessionStorage) {
+	s.sessionsMutex.Lock()
+	defer s.sessionsMutex.Unlock()
+	// 关闭旧的存储
+	if s.sessionStorage != nil {
+		s.sessionStorage.Close()
+	}
+	s.sessionStorage = storage
 }
 
 // AddDatabase 添加自定义数据库类型
@@ -140,16 +243,129 @@ func getConnectionID(r *http.Request) string {
 	return r.URL.Query().Get("connectionId")
 }
 
-// getSession 根据连接ID获取会话
-func (s *Server) getSession(connectionID string) (*ConnectionSession, error) {
-	s.sessionsMutex.RLock()
-	defer s.sessionsMutex.RUnlock()
+// createDatabaseFromSessionData 根据SessionData重建数据库连接
+func (s *Server) createDatabaseFromSessionData(data *SessionData) (database.Database, error) {
+	var db database.Database
 
+	// 先检查是否为自定义数据库类型
+	s.customDbMutex.RLock()
+	factory, isCustom := s.customDatabases[data.DbType]
+	s.customDbMutex.RUnlock()
+
+	if isCustom {
+		// 使用自定义数据库工厂函数
+		db = factory()
+	} else {
+		// 使用内置数据库类型
+		switch data.DbType {
+		case "mysql":
+			db = database.NewMySQL()
+		case "clickhouse":
+			db = database.NewClickHouse()
+		case "dameng":
+			db = database.NewBaseMysqlBasedDB("dameng")
+		case "openguass":
+			db = database.NewBaseMysqlBasedDB("openguass")
+		case "vastbase":
+			db = database.NewBaseMysqlBasedDB("vastbase")
+		case "kingbase":
+			db = database.NewBaseMysqlBasedDB("kingbase")
+		case "oceandb":
+			db = database.NewBaseMysqlBasedDB("oceandb")
+		case "sqlite":
+			db = database.NewSQLite3()
+		case "postgres", "postgresql":
+			db = database.NewPostgreSQL()
+		default:
+			return nil, fmt.Errorf("不支持的数据库类型: %s", data.DbType)
+		}
+	}
+
+	// 重建连接
+	if err := db.Connect(data.DSN); err != nil {
+		return nil, fmt.Errorf("重建连接失败: %w", err)
+	}
+
+	// 如果之前选择了数据库，切换回去
+	if data.CurrentDatabase != "" {
+		if err := db.SwitchDatabase(data.CurrentDatabase); err != nil {
+			// 切换失败不影响，记录警告即可
+			log.Printf("警告: 切换数据库失败: %v", err)
+		}
+	}
+
+	return db, nil
+}
+
+// getSession 根据连接ID获取会话
+// 如果内存缓存中没有，会尝试从持久化存储重建
+func (s *Server) getSession(connectionID string) (*ConnectionSession, error) {
+	// 先检查内存缓存
+	s.sessionsMutex.RLock()
 	session, exists := s.sessions[connectionID]
-	if !exists {
+	s.sessionsMutex.RUnlock()
+
+	if exists {
+		return session, nil
+	}
+
+	// 从持久化存储获取
+	sessionData, err := s.sessionStorage.Get(connectionID)
+	if err != nil {
 		return nil, fmt.Errorf("连接不存在或已断开")
 	}
+
+	// 重建数据库连接
+	db, err := s.createDatabaseFromSessionData(sessionData)
+	if err != nil {
+		return nil, fmt.Errorf("重建连接失败: %w", err)
+	}
+
+	// 创建会话对象
+	session = &ConnectionSession{
+		db:              db,
+		dbType:          sessionData.DbType,
+		currentDatabase: sessionData.CurrentDatabase,
+		currentTable:    sessionData.CurrentTable,
+		createdAt:       sessionData.CreatedAt,
+		sessionData:     sessionData,
+	}
+
+	// 保存到内存缓存
+	s.sessionsMutex.Lock()
+	s.sessions[connectionID] = session
+	s.sessionsMutex.Unlock()
+
 	return session, nil
+}
+
+// updateSession 更新会话并同步到持久化存储
+func (s *Server) updateSession(connectionID string, updateFn func(*ConnectionSession)) error {
+	session, err := s.getSession(connectionID)
+	if err != nil {
+		return err
+	}
+
+	// 更新内存中的会话
+	s.sessionsMutex.Lock()
+	updateFn(session)
+	// 同步更新sessionData
+	if session.sessionData != nil {
+		session.sessionData.CurrentDatabase = session.currentDatabase
+		session.sessionData.CurrentTable = session.currentTable
+	}
+	s.sessionsMutex.Unlock()
+
+	// 同步到持久化存储
+	if session.sessionData != nil {
+		ttl := 24 * time.Hour
+		if err := s.sessionStorage.Set(connectionID, session.sessionData, ttl); err != nil {
+			log.Printf("警告: 更新会话到持久化存储失败: %v", err)
+			// 不返回错误，因为内存中的会话已经更新
+		}
+	}
+
+	return nil
 }
 
 // SetCustomScript 设置自定义JavaScript脚本
@@ -263,16 +479,34 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 创建会话
+	// 创建会话数据（用于持久化）
+	sessionData := &SessionData{
+		ConnectionInfo:  info,
+		DSN:            dsn,
+		DbType:         info.Type,
+		CurrentDatabase: "",
+		CurrentTable:    "",
+		CreatedAt:       time.Now(),
+	}
+
+	// 保存到持久化存储（默认TTL为24小时）
+	ttl := 24 * time.Hour
+	if err := s.sessionStorage.Set(connectionID, sessionData, ttl); err != nil {
+		log.Printf("警告: 保存会话到持久化存储失败: %v", err)
+		// 继续执行，不中断连接流程
+	}
+
+	// 创建运行时会话对象
 	session := &ConnectionSession{
 		db:              db,
 		dbType:          info.Type,
 		currentDatabase: "",
 		currentTable:    "",
 		createdAt:       time.Now(),
+		sessionData:     sessionData,
 	}
 
-	// 保存会话
+	// 保存到内存缓存
 	s.sessionsMutex.Lock()
 	s.sessions[connectionID] = session
 	s.sessionsMutex.Unlock()
@@ -338,9 +572,9 @@ func (s *Server) GetTableSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.sessionsMutex.Lock()
-	session.currentTable = tableName
-	s.sessionsMutex.Unlock()
+	s.updateSession(connectionID, func(s *ConnectionSession) {
+		s.currentTable = tableName
+	})
 
 	schema, err := session.db.GetTableSchema(tableName)
 	if err != nil {
@@ -416,9 +650,9 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.sessionsMutex.Lock()
-	session.currentTable = tableName
-	s.sessionsMutex.Unlock()
+	s.updateSession(connectionID, func(s *ConnectionSession) {
+		s.currentTable = tableName
+	})
 
 	data, total, err := session.db.GetTableData(tableName, page, pageSize)
 	if err != nil {
@@ -747,10 +981,10 @@ func (s *Server) SwitchDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.sessionsMutex.Lock()
-	session.currentDatabase = req.Database
-	session.currentTable = "" // 切换数据库时清空当前表
-	s.sessionsMutex.Unlock()
+	s.updateSession(connectionID, func(s *ConnectionSession) {
+		s.currentDatabase = req.Database
+		s.currentTable = "" // 切换数据库时清空当前表
+	})
 
 	// 切换数据库后重新加载表列表
 	tables, err := session.db.GetTables()
@@ -780,14 +1014,20 @@ func (s *Server) Disconnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.sessionsMutex.Lock()
-	defer s.sessionsMutex.Unlock()
-
 	session, exists := s.sessions[connectionID]
 	if exists {
 		if session.db != nil {
 			session.db.Close()
 		}
 		delete(s.sessions, connectionID)
+	}
+	s.sessionsMutex.Unlock()
+
+	// 从持久化存储删除
+	if exists {
+		if err := s.sessionStorage.Delete(connectionID); err != nil {
+			log.Printf("警告: 从持久化存储删除会话失败: %v", err)
+		}
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -818,12 +1058,14 @@ func (s *Server) GetStatus(w http.ResponseWriter, r *http.Request) {
 	s.sessionsMutex.RLock()
 	currentDatabase := session.currentDatabase
 	currentTable := session.currentTable
+	dbType := session.dbType
 	s.sessionsMutex.RUnlock()
 
 	// 获取数据库列表
 	databases, err := session.db.GetDatabases()
 	response := map[string]interface{}{
 		"connected": true,
+		"dbType":    dbType,
 	}
 	if err == nil {
 		response["databases"] = databases
