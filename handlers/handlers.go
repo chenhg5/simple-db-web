@@ -20,11 +20,11 @@ import (
 // 用于持久化存储，不包含实际的数据库连接对象
 type SessionData struct {
 	ConnectionInfo  database.ConnectionInfo `json:"connection_info"`  // 连接信息（用于重建连接）
-	DSN            string                  `json:"dsn"`              // DSN连接字符串
-	DbType         string                  `json:"db_type"`          // 数据库类型
-	CurrentDatabase string                 `json:"current_database"` // 当前数据库
-	CurrentTable    string                 `json:"current_table"`    // 当前表
-	CreatedAt       time.Time              `json:"created_at"`       // 创建时间
+	DSN             string                  `json:"dsn"`              // DSN连接字符串
+	DbType          string                  `json:"db_type"`          // 数据库类型
+	CurrentDatabase string                  `json:"current_database"` // 当前数据库
+	CurrentTable    string                  `json:"current_table"`    // 当前表
+	CreatedAt       time.Time               `json:"created_at"`       // 创建时间
 }
 
 // ConnectionSession 连接会话信息（运行时对象）
@@ -122,15 +122,15 @@ func (m *MemorySessionStorage) Close() error {
 
 // Server 服务器结构
 type Server struct {
-	templates       *template.Template
-	sessionStorage  SessionStorage              // 会话存储接口
-	sessions        map[string]*ConnectionSession // 运行时会话缓存（包含实际连接）
-	sessionsMutex   sync.RWMutex
-	customDatabases map[string]DatabaseFactory // 自定义数据库类型
-	customDbMutex   sync.RWMutex
-	builtinTypes    map[string]string // 内置数据库类型及其显示名称
-	customScript    string             // 自定义JavaScript脚本，会在页面加载后执行
-	customScriptMutex sync.RWMutex     // 保护customScript的读写锁
+	templates         *template.Template
+	sessionStorage    SessionStorage                // 会话存储接口
+	sessions          map[string]*ConnectionSession // 运行时会话缓存（包含实际连接）
+	sessionsMutex     sync.RWMutex
+	customDatabases   map[string]DatabaseFactory // 自定义数据库类型
+	customDbMutex     sync.RWMutex
+	builtinTypes      map[string]string // 内置数据库类型及其显示名称
+	customScript      string            // 自定义JavaScript脚本，会在页面加载后执行
+	customScriptMutex sync.RWMutex      // 保护customScript的读写锁
 }
 
 // NewServer 创建新的服务器实例
@@ -169,8 +169,9 @@ func NewServer() (*Server, error) {
 // SetSessionStorage 设置自定义会话存储
 // 允许外部项目使用Redis、MySQL等外部存储
 // 示例：
-//   redisStorage := NewRedisSessionStorage(redisClient)
-//   server.SetSessionStorage(redisStorage)
+//
+//	redisStorage := NewRedisSessionStorage(redisClient)
+//	server.SetSessionStorage(redisStorage)
 func (s *Server) SetSessionStorage(storage SessionStorage) {
 	s.sessionsMutex.Lock()
 	defer s.sessionsMutex.Unlock()
@@ -305,14 +306,14 @@ func (s *Server) getSession(connectionID string) (*ConnectionSession, error) {
 	session, exists := s.sessions[connectionID]
 	s.sessionsMutex.RUnlock()
 
-	if exists {
-		return session, nil
-	}
-
 	// 从持久化存储获取
 	sessionData, err := s.sessionStorage.Get(connectionID)
 	if err != nil {
 		return nil, fmt.Errorf("连接不存在或已断开")
+	}
+
+	if exists && sessionData.CurrentDatabase == session.currentDatabase {
+		return session, nil
 	}
 
 	// 重建数据库连接
@@ -371,16 +372,17 @@ func (s *Server) updateSession(connectionID string, updateFn func(*ConnectionSes
 // SetCustomScript 设置自定义JavaScript脚本
 // 这个脚本会在页面加载后执行，可以用于配置请求拦截器等
 // 示例：
-//   server.SetCustomScript(`
-//     window.SimpleDB.config.requestInterceptor = function(url, options) {
-//       const token = getCookie('auth_token');
-//       if (token) {
-//         options.headers = options.headers || {};
-//         options.headers['Authorization'] = 'Bearer ' + token;
-//       }
-//       return { url, options };
-//     };
-//   `)
+//
+//	server.SetCustomScript(`
+//	  window.SimpleDB.config.requestInterceptor = function(url, options) {
+//	    const token = getCookie('auth_token');
+//	    if (token) {
+//	      options.headers = options.headers || {};
+//	      options.headers['Authorization'] = 'Bearer ' + token;
+//	    }
+//	    return { url, options };
+//	  };
+//	`)
 func (s *Server) SetCustomScript(script string) {
 	s.customScriptMutex.Lock()
 	defer s.customScriptMutex.Unlock()
@@ -482,8 +484,8 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 	// 创建会话数据（用于持久化）
 	sessionData := &SessionData{
 		ConnectionInfo:  info,
-		DSN:            dsn,
-		DbType:         info.Type,
+		DSN:             dsn,
+		DbType:          info.Type,
 		CurrentDatabase: "",
 		CurrentTable:    "",
 		CreatedAt:       time.Now(),
