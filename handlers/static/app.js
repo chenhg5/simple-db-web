@@ -252,6 +252,12 @@ function saveConnection(connectionInfo) {
         
         if (existingIndex >= 0) {
             // 更新已存在的连接
+            const existingConn = saved[existingIndex];
+            // 如果新连接没有密码字段，保留旧的密码和 passwordEncrypted 字段
+            if (!connectionToSave.password && existingConn.password) {
+                connectionToSave.password = existingConn.password;
+                connectionToSave.passwordEncrypted = existingConn.passwordEncrypted;
+            }
             saved[existingIndex] = connectionToSave;
         } else {
             // 添加新连接
@@ -684,10 +690,17 @@ connectionForm.addEventListener('submit', async (e) => {
             updateConnectionInfo(connInfo);
             
             // 如果勾选了"记住连接"，保存连接信息
-            if (rememberConnection.checked && mode === 'form') {
-                saveConnection(connectionInfo);
-            } else if (rememberConnection.checked && mode === 'dsn') {
-                saveConnection(connectionInfo);
+            if (rememberConnection.checked) {
+                // 构建用于保存的完整连接信息（包含密码）
+                const connectionToSave = {
+                    type: dbType,
+                    host: mode === 'form' ? document.getElementById('host').value : '',
+                    port: mode === 'form' ? (document.getElementById('port').value || '3306') : '',
+                    user: mode === 'form' ? document.getElementById('user').value : '',
+                    password: mode === 'form' ? document.getElementById('password').value : '',
+                    dsn: mode === 'dsn' ? document.getElementById('dsn').value : ''
+                };
+                saveConnection(connectionToSave);
             }
             
             // 检查DSN中是否包含数据库
