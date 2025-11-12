@@ -401,7 +401,7 @@ func (s *Server) Home(w http.ResponseWriter, r *http.Request) {
 	s.customScriptMutex.RUnlock()
 
 	data := map[string]interface{}{
-		"CustomScript": template.HTML(customScript),
+		"CustomScript": template.JS(customScript), // 使用template.JS避免转义
 	}
 
 	if err := s.templates.ExecuteTemplate(w, "index.html", data); err != nil {
