@@ -42,6 +42,8 @@ type Server struct {
 	customDatabases map[string]DatabaseFactory // 自定义数据库类型
 	customDbMutex   sync.RWMutex
 	builtinTypes    map[string]string // 内置数据库类型及其显示名称
+	customScript    string             // 自定义JavaScript脚本，会在页面加载后执行
+	customScriptMutex sync.RWMutex     // 保护customScript的读写锁
 }
 
 // NewServer 创建新的服务器实例
@@ -150,9 +152,43 @@ func (s *Server) getSession(connectionID string) (*ConnectionSession, error) {
 	return session, nil
 }
 
+// SetCustomScript 设置自定义JavaScript脚本
+// 这个脚本会在页面加载后执行，可以用于配置请求拦截器等
+// 示例：
+//   server.SetCustomScript(`
+//     window.SimpleDB.config.requestInterceptor = function(url, options) {
+//       const token = getCookie('auth_token');
+//       if (token) {
+//         options.headers = options.headers || {};
+//         options.headers['Authorization'] = 'Bearer ' + token;
+//       }
+//       return { url, options };
+//     };
+//   `)
+func (s *Server) SetCustomScript(script string) {
+	s.customScriptMutex.Lock()
+	defer s.customScriptMutex.Unlock()
+	s.customScript = script
+}
+
+// GetCustomScript 获取自定义脚本
+func (s *Server) GetCustomScript() string {
+	s.customScriptMutex.RLock()
+	defer s.customScriptMutex.RUnlock()
+	return s.customScript
+}
+
 // Home 首页
 func (s *Server) Home(w http.ResponseWriter, r *http.Request) {
-	if err := s.templates.ExecuteTemplate(w, "index.html", nil); err != nil {
+	s.customScriptMutex.RLock()
+	customScript := s.customScript
+	s.customScriptMutex.RUnlock()
+
+	data := map[string]interface{}{
+		"CustomScript": template.HTML(customScript),
+	}
+
+	if err := s.templates.ExecuteTemplate(w, "index.html", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

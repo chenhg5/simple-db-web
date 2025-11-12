@@ -1,4 +1,95 @@
-// 全局状态
+// ==================== 全局配置和扩展机制 ====================
+// 全局配置对象，允许外部项目自定义行为
+window.SimpleDBConfig = window.SimpleDBConfig || {
+    // 请求拦截器：在发送请求前可以修改请求配置
+    // 参数: (url, options) => { return { url, options }; }
+    // options 包含 method, headers, body 等 fetch 标准选项
+    requestInterceptor: null,
+    
+    // 响应拦截器：在收到响应后可以处理响应
+    // 参数: (response) => { return response; }
+    responseInterceptor: null,
+    
+    // 错误拦截器：在请求出错时处理错误
+    // 参数: (error, url, options) => { return error; }
+    errorInterceptor: null
+};
+
+// 统一的API请求函数，支持拦截器
+async function apiRequest(url, options = {}) {
+    // 默认headers
+    const defaultHeaders = {};
+    
+    // 如果有body且是对象或字符串，默认添加Content-Type
+    if (options.body) {
+        if (typeof options.body === 'string' || (typeof options.body === 'object' && !(options.body instanceof FormData))) {
+            defaultHeaders['Content-Type'] = 'application/json';
+        }
+    }
+    
+    // 合并headers（用户自定义的headers优先级更高）
+    const headers = {
+        ...defaultHeaders,
+        ...(options.headers || {})
+    };
+    
+    // 添加连接ID到headers（如果存在）
+    if (connectionId) {
+        headers['X-Connection-ID'] = connectionId;
+    }
+    
+    // 构建请求配置
+    let requestOptions = {
+        ...options,
+        headers: headers
+    };
+    
+    // 调用请求拦截器（如果存在）
+    if (window.SimpleDBConfig.requestInterceptor) {
+        try {
+            const intercepted = window.SimpleDBConfig.requestInterceptor(url, requestOptions);
+            if (intercepted) {
+                url = intercepted.url || url;
+                requestOptions = intercepted.options || requestOptions;
+            }
+        } catch (error) {
+            console.warn('请求拦截器执行失败:', error);
+        }
+    }
+    
+    try {
+        // 发送请求
+        let response = await fetch(url, requestOptions);
+        
+        // 调用响应拦截器（如果存在）
+        if (window.SimpleDBConfig.responseInterceptor) {
+            try {
+                response = await window.SimpleDBConfig.responseInterceptor(response);
+            } catch (error) {
+                console.warn('响应拦截器执行失败:', error);
+            }
+        }
+        
+        return response;
+    } catch (error) {
+        // 调用错误拦截器（如果存在）
+        if (window.SimpleDBConfig.errorInterceptor) {
+            try {
+                error = await window.SimpleDBConfig.errorInterceptor(error, url, requestOptions);
+            } catch (interceptorError) {
+                console.warn('错误拦截器执行失败:', interceptorError);
+            }
+        }
+        throw error;
+    }
+}
+
+// 导出配置对象和请求函数到全局，方便外部访问
+window.SimpleDB = window.SimpleDB || {};
+window.SimpleDB.config = window.SimpleDBConfig;
+window.SimpleDB.apiRequest = apiRequest;
+
+// ==================== 全局状态 ====================
 let currentTable = null;
 let currentPage = 1;
 let pageSize = 50;
@@ -294,11 +385,8 @@ async function connectWithSavedConnection(savedConn) {
     const connectBtn = connectionForm.querySelector('button[type="submit"]');
     setButtonLoading(connectBtn, true);
     try {
-        const response = await fetch(`${API_BASE}/connect`, {
+        const response = await apiRequest(`${API_BASE}/connect`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify(connectionInfo)
         });
         
@@ -437,7 +525,7 @@ function setButtonLoading(button, loading) {
 // 加载数据库类型列表
 async function loadDatabaseTypes() {
     try {
-        const response = await fetch(`${API_BASE}/database/types`);
+        const response = await apiRequest(`${API_BASE}/database/types`);
         const data = await response.json();
         
         if (data.success && data.types) {
@@ -491,11 +579,11 @@ async function restoreConnection() {
         }
         
         // 检查连接是否仍然有效
-        const response = await fetch(`${API_BASE}/status`, {
-            headers: {
-                'X-Connection-ID': savedConnectionId
-            }
-        });
+        // 临时设置connectionId以便apiRequest自动添加header
+        const originalConnectionId = connectionId;
+        connectionId = savedConnectionId;
+        const response = await apiRequest(`${API_BASE}/status`);
+        connectionId = originalConnectionId;
         const data = await response.json();
         
         if (response.ok && data.connected) {
@@ -571,11 +659,8 @@ connectionForm.addEventListener('submit', async (e) => {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/connect`, {
+        const response = await apiRequest(`${API_BASE}/connect`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify(connectionInfo)
         });
         
@@ -723,13 +808,7 @@ async function loadDatabases(databases) {
         // 如果没有数据库列表,尝试从服务器获取
         showLoading(databaseLoading);
         try {
-            const headers = {};
-            if (connectionId) {
-                headers['X-Connection-ID'] = connectionId;
-            }
-            const response = await fetch(`${API_BASE}/databases`, {
-                headers: headers
-            });
+            const response = await apiRequest(`${API_BASE}/databases`);
             const data = await response.json();
             if (data.success && data.databases) {
                 data.databases.forEach(db => {
@@ -758,15 +837,8 @@ async function switchDatabase(databaseName) {
     showLoading(tablesLoading);
     setButtonLoading(databaseSelect, true);
     try {
-        const headers = {
-            'Content-Type': 'application/json'
-        };
-        if (connectionId) {
-            headers['X-Connection-ID'] = connectionId;
-        }
-        const response = await fetch(`${API_BASE}/database/switch`, {
+        const response = await apiRequest(`${API_BASE}/database/switch`, {
             method: 'POST',
-            headers: headers,
             body: JSON.stringify({ database: databaseName })
         });
         
@@ -834,15 +906,8 @@ tableFilter.addEventListener('input', filterTables);
 disconnectBtn.addEventListener('click', async () => {
     setButtonLoading(disconnectBtn, true);
     try {
-        const headers = {
-            'Content-Type': 'application/json'
-        };
-        if (connectionId) {
-            headers['X-Connection-ID'] = connectionId;
-        }
-        const response = await fetch(`${API_BASE}/disconnect`, {
-            method: 'POST',
-            headers: headers
+        const response = await apiRequest(`${API_BASE}/disconnect`, {
+            method: 'POST'
         });
         
         const data = await response.json();
@@ -881,13 +946,7 @@ async function loadTables() {
     showLoading(tablesLoading);
     setButtonLoading(refreshTables, true);
     try {
-        const headers = {};
-        if (connectionId) {
-            headers['X-Connection-ID'] = connectionId;
-        }
-        const response = await fetch(`${API_BASE}/tables`, {
-            headers: headers
-        });
+        const response = await apiRequest(`${API_BASE}/tables`);
         const data = await response.json();
         
         if (data.success) {
@@ -936,14 +995,8 @@ async function loadTableData() {
     showLoading(dataLoading);
     setButtonLoading(refreshData, true);
     try {
-        const headers = {};
-        if (connectionId) {
-            headers['X-Connection-ID'] = connectionId;
-        }
         // 先获取列信息，确保按正确顺序显示
-        const columnsResponse = await fetch(`${API_BASE}/table/columns?table=${currentTable}`, {
-            headers: headers
-        });
+        const columnsResponse = await apiRequest(`${API_BASE}/table/columns?table=${currentTable}`);
         const columnsData = await columnsResponse.json();
         
         if (columnsData.success) {
@@ -951,9 +1004,7 @@ async function loadTableData() {
         }
         
         // 然后获取数据
-        const response = await fetch(`${API_BASE}/table/data?table=${currentTable}&page=${currentPage}&pageSize=${pageSize}`, {
-            headers: headers
-        });
+        const response = await apiRequest(`${API_BASE}/table/data?table=${currentTable}&page=${currentPage}&pageSize=${pageSize}`);
         const data = await response.json();
         
         if (data.success) {
@@ -1130,13 +1181,7 @@ async function loadTableSchema() {
     
     showLoading(schemaLoading);
     try {
-        const headers = {};
-        if (connectionId) {
-            headers['X-Connection-ID'] = connectionId;
-        }
-        const response = await fetch(`${API_BASE}/table/schema?table=${currentTable}`, {
-            headers: headers
-        });
+        const response = await apiRequest(`${API_BASE}/table/schema?table=${currentTable}`);
         const data = await response.json();
         
         if (data.success) {
@@ -1180,15 +1225,8 @@ executeQuery.addEventListener('click', async () => {
     showLoading(queryLoading);
     setButtonLoading(executeQuery, true);
     try {
-        const headers = {
-            'Content-Type': 'application/json'
-        };
-        if (connectionId) {
-            headers['X-Connection-ID'] = connectionId;
-        }
-        const response = await fetch(`${API_BASE}/query`, {
+        const response = await apiRequest(`${API_BASE}/query`, {
             method: 'POST',
-            headers: headers,
             body: JSON.stringify({ query })
         });
         
@@ -1252,13 +1290,7 @@ window.editRow = function(rowData) {
     currentRowData = rowData;
     
     // 获取列信息
-    const headers = {};
-    if (connectionId) {
-        headers['X-Connection-ID'] = connectionId;
-    }
-    fetch(`/api/table/columns?table=${currentTable}`, {
-        headers: headers
-    })
+    apiRequest(`${API_BASE}/table/columns?table=${currentTable}`)
         .then(res => res.json())
         .then(data => {
             if (data.success) {
@@ -1286,13 +1318,7 @@ saveEdit.addEventListener('click', async () => {
     if (!currentTable || !currentRowData) return;
     
     // 获取主键列
-    const headers = {};
-    if (connectionId) {
-        headers['X-Connection-ID'] = connectionId;
-    }
-    const columns = await fetch(`/api/table/columns?table=${currentTable}`, {
-        headers: headers
-    })
+    const columns = await apiRequest(`${API_BASE}/table/columns?table=${currentTable}`)
         .then(res => res.json())
         .then(data => data.columns);
     
@@ -1317,15 +1343,8 @@ saveEdit.addEventListener('click', async () => {
     });
     
     try {
-        const requestHeaders = {
-            'Content-Type': 'application/json'
-        };
-        if (connectionId) {
-            requestHeaders['X-Connection-ID'] = connectionId;
-        }
-        const response = await fetch(`${API_BASE}/row/update`, {
+        const response = await apiRequest(`${API_BASE}/row/update`, {
             method: 'POST',
-            headers: requestHeaders,
             body: JSON.stringify({
                 table: currentTable,
                 data: updateData,
@@ -1352,13 +1371,7 @@ window.deleteRow = function(rowData) {
     currentRowData = rowData;
     
     // 获取主键列
-    const headers = {};
-    if (connectionId) {
-        headers['X-Connection-ID'] = connectionId;
-    }
-    fetch(`/api/table/columns?table=${currentTable}`, {
-        headers: headers
-    })
+    apiRequest(`${API_BASE}/table/columns?table=${currentTable}`)
         .then(res => res.json())
         .then(data => {
             if (data.success) {
@@ -1382,15 +1395,8 @@ confirmDelete.addEventListener('click', async () => {
     
     setButtonLoading(confirmDelete, true);
     try {
-        const headers = {
-            'Content-Type': 'application/json'
-        };
-        if (connectionId) {
-            headers['X-Connection-ID'] = connectionId;
-        }
-        const response = await fetch(`${API_BASE}/row/delete`, {
+        const response = await apiRequest(`${API_BASE}/row/delete`, {
             method: 'POST',
-            headers: headers,
             body: JSON.stringify({
                 table: currentTable,
                 where: currentDeleteWhere
