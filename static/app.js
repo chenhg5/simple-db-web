@@ -962,6 +962,13 @@ async function loadTables() {
         const response = await apiRequest(`${API_BASE}/tables`);
         const data = await response.json();
         
+        if (!response.ok || !data.success) {
+            showNotification(data.message || '加载表列表失败', 'error');
+            hideLoading(tablesLoading);
+            setButtonLoading(refreshTables, false);
+            return;
+        }
+        
         if (data.success) {
             displayTables(data.tables || []);
         }
@@ -1012,6 +1019,13 @@ async function loadTableData() {
         const columnsResponse = await apiRequest(`${API_BASE}/table/columns?table=${currentTable}`);
         const columnsData = await columnsResponse.json();
         
+        if (!columnsResponse.ok || !columnsData.success) {
+            showNotification(columnsData.message || '获取列信息失败', 'error');
+            hideLoading(dataLoading);
+            setButtonLoading(refreshData, false);
+            return;
+        }
+        
         if (columnsData.success) {
             currentColumns = columnsData.columns.map(col => col.name);
         }
@@ -1019,6 +1033,13 @@ async function loadTableData() {
         // 然后获取数据
         const response = await apiRequest(`${API_BASE}/table/data?table=${currentTable}&page=${currentPage}&pageSize=${pageSize}`);
         const data = await response.json();
+        
+        if (!response.ok || !data.success) {
+            showNotification(data.message || '获取数据失败', 'error');
+            hideLoading(dataLoading);
+            setButtonLoading(refreshData, false);
+            return;
+        }
         
         if (data.success) {
             // 按照 data.columns 的顺序显示数据
@@ -1197,6 +1218,12 @@ async function loadTableSchema() {
         const response = await apiRequest(`${API_BASE}/table/schema?table=${currentTable}`);
         const data = await response.json();
         
+        if (!response.ok || !data.success) {
+            showNotification(data.message || '加载表结构失败', 'error');
+            hideLoading(schemaLoading);
+            return;
+        }
+        
         if (data.success) {
             schemaContent.textContent = data.schema;
         }
@@ -1245,6 +1272,11 @@ executeQuery.addEventListener('click', async () => {
         
         const data = await response.json();
         
+        if (!response.ok || !data.success) {
+            queryResults.innerHTML = `<div class="query-message error">${data.message || '执行失败'}</div>`;
+            return;
+        }
+        
         if (response.ok && data.success) {
             if (data.data) {
                 // 查询结果
@@ -1253,8 +1285,6 @@ executeQuery.addEventListener('click', async () => {
                 // 更新/删除/插入结果
                 queryResults.innerHTML = `<div class="query-message success">操作成功，影响 ${data.affected} 行</div>`;
             }
-        } else {
-            queryResults.innerHTML = `<div class="query-message error">${data.message || '执行失败'}</div>`;
         }
     } catch (error) {
         queryResults.innerHTML = `<div class="query-message error">执行失败: ${error.message}</div>`;
@@ -1367,12 +1397,15 @@ saveEdit.addEventListener('click', async () => {
         
         const data = await response.json();
         
+        if (!response.ok || !data.success) {
+            showNotification(data.message || '更新失败', 'error');
+            return;
+        }
+        
         if (response.ok && data.success) {
             showNotification('更新成功', 'success');
             editModal.style.display = 'none';
             loadTableData();
-        } else {
-            showNotification(data.message || '更新失败', 'error');
         }
     } catch (error) {
         showNotification('更新失败: ' + error.message, 'error');
@@ -1418,12 +1451,15 @@ confirmDelete.addEventListener('click', async () => {
         
         const data = await response.json();
         
+        if (!response.ok || !data.success) {
+            showNotification(data.message || '删除失败', 'error');
+            return;
+        }
+        
         if (response.ok && data.success) {
             showNotification('删除成功', 'success');
             deleteModal.style.display = 'none';
             loadTableData();
-        } else {
-            showNotification(data.message || '删除失败', 'error');
         }
     } catch (error) {
         showNotification('删除失败: ' + error.message, 'error');

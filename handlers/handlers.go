@@ -300,8 +300,9 @@ func (s *Server) createDatabaseFromSessionData(data *SessionData) (database.Data
 	// 如果之前选择了数据库，切换回去
 	if data.CurrentDatabase != "" {
 		if err := db.SwitchDatabase(data.CurrentDatabase); err != nil {
-			// 切换失败不影响，记录警告即可
-			log.Printf("警告: 切换数据库失败: %v", err)
+			// 切换失败返回错误，确保数据库正确切换
+			db.Close()
+			return nil, fmt.Errorf("切换数据库失败: %w", err)
 		}
 	}
 
@@ -624,6 +625,12 @@ func (s *Server) GetTableColumns(w http.ResponseWriter, r *http.Request) {
 	session, err := s.getSession(connectionID)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 确保数据库已选择（从持久化存储获取的会话应该已经切换了数据库，但为了安全再次检查）
+	if session.currentDatabase == "" {
+		writeJSONError(w, http.StatusBadRequest, "请先选择数据库")
 		return
 	}
 
