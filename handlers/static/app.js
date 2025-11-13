@@ -981,20 +981,37 @@ async function connectWithSavedConnection(savedConn) {
         
         if (response.ok && data.success) {
             // 保存连接ID和连接信息
-            connectionId = data.connectionId;
+            const newConnectionId = data.connectionId;
             const connInfo = {
                 type: savedConn.type || 'mysql',
                 host: savedConn.host || '',
                 port: savedConn.port || '3306',
                 user: savedConn.user || '',
-                dsn: savedConn.dsn || ''
+                dsn: savedConn.dsn || '',
+                proxy: savedConn.proxy || null
             };
+            
+            // 添加到活动连接列表
+            activeConnections.set(newConnectionId, {
+                connectionId: newConnectionId,
+                connectionInfo: connInfo,
+                databases: data.databases || []
+            });
+            
+            // 更新当前连接（兼容旧代码）
+            connectionId = newConnectionId;
             connectionInfo = connInfo;
             currentDbType = savedConn.type || 'mysql'; // 保存数据库类型
-            sessionStorage.setItem('currentConnectionId', connectionId);
+            
+            // 保存到sessionStorage（用于页面刷新后恢复）
+            sessionStorage.setItem('currentConnectionId', newConnectionId);
             sessionStorage.setItem('currentConnectionInfo', JSON.stringify(connInfo));
+            
+            // 更新UI
             updateConnectionStatus(true);
             updateConnectionInfo(connInfo);
+            updateActiveConnectionsList();
+            
             // 检查DSN中是否包含数据库
             const dsn = connInfo.dsn || '';
             const hasDatabaseInDSN = dsn && (dsn.includes('/') && !dsn.endsWith('/') && !dsn.endsWith('/?'));
@@ -1018,9 +1035,9 @@ async function connectWithSavedConnection(savedConn) {
                 databasePanel.style.display = 'block';
                 await loadDatabases(data.databases || []);
             }
-            showNotification('连接成功', 'success');
+            showNotification(t('connection.success'), 'success');
         } else {
-            showNotification(data.message || '连接失败', 'error');
+            showNotification(data.message || t('connection.failed'), 'error');
         }
     } catch (error) {
         showNotification('连接失败: ' + error.message, 'error');
