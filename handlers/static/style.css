@@ -912,3 +912,68 @@ body {
 .query-history-item:last-child {
     border-bottom: none;
 }
+/* 查询结果Tab样式 */
+.query-results-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.query-results-tabs {
+    flex-shrink: 0;
+}
+
+.query-results-tabs-list {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.5rem 0;
+}
+
+.query-result-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.query-result-tab:hover {
+    background: var(--surface-light);
+}
+
+.query-result-tab.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.query-result-tab-close {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    width: 1.2rem;
+    height: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.query-result-tab-close:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.1);
+}

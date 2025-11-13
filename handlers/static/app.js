@@ -23,6 +23,7 @@ const i18n = {
             'common.noData': 'No Data',
             'common.operation': 'Operation',
             'common.null': 'NULL',
+            'common.rows': 'rows',
             
             // 连接管理
             'connection.management': 'Connection Management',
@@ -238,6 +239,10 @@ const i18n = {
             'query.formatSuccess': 'SQL格式化成功',
             'query.formatFailed': '格式化失败',
             'query.formatterNotLoaded': 'SQL格式化库未加载',
+            'query.resultTab': '结果 #{index}',
+            'query.closeResult': '关闭',
+            'query.noResults': '暂无查询结果',
+            'common.rows': '行',
             
             // 编辑和删除
             'edit.title': '编辑行数据',
@@ -378,6 +383,10 @@ const i18n = {
             'query.formatSuccess': 'SQL格式化成功',
             'query.formatFailed': '格式化失敗',
             'query.formatterNotLoaded': 'SQL格式化庫未載入',
+            'query.resultTab': '結果 #{index}',
+            'query.closeResult': '關閉',
+            'query.noResults': '暫無查詢結果',
+            'common.rows': '行',
             
             // 编辑和删除
             'edit.title': '編輯行資料',
@@ -1356,7 +1365,66 @@ function initCodeMirror() {
     });
 }
 
-// 查询历史记录管理
+// 查询结果历史记录管理（最多保存10份）
+const queryResultsHistory = {
+    results: [], // 存储查询结果 [{id, query, data, timestamp}, ...]
+    currentResultId: null, // 当前显示的结果ID
+    maxResults: 10, // 最多保存10份
+    
+    // 添加查询结果
+    add(query, data) {
+        if (!query || !query.trim()) return null;
+        
+        const resultId = 'result_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const result = {
+            id: resultId,
+            query: query.trim(),
+            data: data || [],
+            timestamp: new Date().toISOString()
+        };
+        
+        // 添加到开头
+        this.results.unshift(result);
+        
+        // 只保留最近10份
+        if (this.results.length > this.maxResults) {
+            this.results = this.results.slice(0, this.maxResults);
+        }
+        
+        // 设置为当前结果
+        this.currentResultId = resultId;
+        
+        return resultId;
+    },
+    
+    // 获取结果
+    get(resultId) {
+        return this.results.find(r => r.id === resultId);
+    },
+    
+    // 删除结果
+    remove(resultId) {
+        this.results = this.results.filter(r => r.id !== resultId);
+        // 如果删除的是当前结果，切换到第一个（如果有）
+        if (this.currentResultId === resultId) {
+            this.currentResultId = this.results.length > 0 ? this.results[0].id : null;
+        }
+    },
+    
+    // 清空所有结果
+    clear() {
+        this.results = [];
+        this.currentResultId = null;
+    },
+    
+    // 获取当前结果
+    getCurrent() {
+        if (!this.currentResultId) return null;
+        return this.get(this.currentResultId);
+    }
+};
+
+// 查询历史记录管理（SQL语句历史）
 const queryHistory = {
     // 保存查询历史（最多10条）
     save(query) {
@@ -2443,22 +2511,34 @@ executeQuery.addEventListener('click', async () => {
         }
         
         if (response.ok && data.success) {
-            // 保存查询历史
+            // 保存查询历史（SQL语句）
             queryHistory.save(query);
             
             if (data.data) {
-                // 查询结果
-                displayQueryResults(data.data);
+                // 查询结果 - 保存到历史记录
+                const resultId = queryResultsHistory.add(query, data.data);
+                
+                // 更新tab显示
+                updateQueryResultsTabs();
+                
+                // 显示当前结果
+                displayQueryResult(resultId);
+                
                 // 显示导出按钮
                 if (exportQueryBtn) {
                     exportQueryBtn.style.display = 'inline-block';
                 }
             } else if (data.affected !== undefined) {
-                // 更新/删除/插入结果
+                // 更新/删除/插入结果（不保存到历史）
                 queryResults.innerHTML = `<div class="query-message success">${t('query.success', { affected: data.affected })}</div>`;
                 // 隐藏导出按钮（非SELECT查询）
                 if (exportQueryBtn) {
                     exportQueryBtn.style.display = 'none';
+                }
+                // 隐藏tab（非SELECT查询不显示tab）
+                const queryResultsTabs = document.getElementById('queryResultsTabs');
+                if (queryResultsTabs) {
+                    queryResultsTabs.style.display = 'none';
                 }
             }
         }
@@ -2474,7 +2554,20 @@ executeQuery.addEventListener('click', async () => {
     }
 });
 
-// 显示查询结果
+// 显示查询结果（根据结果ID）
+function displayQueryResult(resultId) {
+    const result = queryResultsHistory.get(resultId);
+    if (!result) {
+        queryResults.innerHTML = `<div class="query-message">${t('query.noResults')}</div>`;
+        return;
+    }
+    
+    queryResultsHistory.currentResultId = resultId;
+    displayQueryResults(result.data);
+    updateQueryResultsTabs(); // 更新tab高亮
+}
+
+// 显示查询结果（直接显示数据）
 function displayQueryResults(rows) {
     if (rows.length === 0) {
         queryResults.innerHTML = `<div class="query-message">${t('query.emptyResult')}</div>`;
@@ -2500,6 +2593,91 @@ function displayQueryResults(rows) {
     
     html += '</tbody></table>';
     queryResults.innerHTML = html;
+}
+
+// 更新查询结果Tab显示
+function updateQueryResultsTabs() {
+    const queryResultsTabs = document.getElementById('queryResultsTabs');
+    const queryResultsTabsList = document.getElementById('queryResultsTabsList');
+    
+    if (!queryResultsTabs || !queryResultsTabsList) return;
+    
+    // 如果没有结果，隐藏tab
+    if (queryResultsHistory.results.length === 0) {
+        queryResultsTabs.style.display = 'none';
+        return;
+    }
+    
+    // 显示tab
+    queryResultsTabs.style.display = 'block';
+    
+    // 清空现有tab
+    queryResultsTabsList.innerHTML = '';
+    
+    // 创建tab按钮
+    queryResultsHistory.results.forEach((result, index) => {
+        const tabItem = document.createElement('div');
+        tabItem.className = 'query-result-tab';
+        tabItem.dataset.resultId = result.id;
+        tabItem.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: ${queryResultsHistory.currentResultId === result.id ? 'var(--primary-color)' : 'var(--surface)'};
+            color: ${queryResultsHistory.currentResultId === result.id ? 'white' : 'var(--text-primary)'};
+            border: 1px solid var(--border-color);
+            border-radius: 4px 4px 0 0;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        `;
+        
+        // 截断SQL显示（最多30个字符）
+        const queryPreview = result.query.length > 30 ? result.query.substring(0, 30) + '...' : result.query;
+        
+        tabItem.innerHTML = `
+            <span title="${escapeHtml(result.query)}">${t('query.resultTab', { index: index + 1 })}</span>
+            <span style="font-size: 0.75rem; opacity: 0.8;">(${result.data.length} ${t('common.rows')})</span>
+            <button class="query-result-tab-close" style="
+                background: none;
+                border: none;
+                color: ${queryResultsHistory.currentResultId === result.id ? 'white' : 'var(--text-secondary)'};
+                cursor: pointer;
+                padding: 0;
+                width: 1.2rem;
+                height: 1.2rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 2px;
+                font-size: 1rem;
+                line-height: 1;
+            " title="${t('query.closeResult')}">×</button>
+        `;
+        
+        // 点击tab切换结果
+        tabItem.addEventListener('click', (e) => {
+            if (e.target.classList.contains('query-result-tab-close') || e.target.closest('.query-result-tab-close')) {
+                e.stopPropagation();
+                queryResultsHistory.remove(result.id);
+                updateQueryResultsTabs();
+                
+                // 如果还有结果，显示第一个
+                if (queryResultsHistory.results.length > 0) {
+                    displayQueryResult(queryResultsHistory.results[0].id);
+                } else {
+                    queryResults.innerHTML = `<div class="query-message">${t('query.noResults')}</div>`;
+                    queryResultsTabs.style.display = 'none';
+                }
+            } else {
+                displayQueryResult(result.id);
+            }
+        });
+        
+        queryResultsTabsList.appendChild(tabItem);
+    });
 }
 
 // 格式化SQL查询
@@ -2573,11 +2751,7 @@ clearQuery.addEventListener('click', () => {
     } else {
     sqlQuery.value = '';
     }
-    queryResults.innerHTML = '';
-    // 隐藏导出按钮
-    if (exportQueryBtn) {
-        exportQueryBtn.style.display = 'none';
-    }
+    // 注意：不清空查询结果历史，只清空编辑器内容
 });
 
 // 显示/隐藏查询历史模态框
@@ -2673,7 +2847,15 @@ if (exportDataBtn) {
 // 导出查询结果为Excel
 if (exportQueryBtn) {
     exportQueryBtn.addEventListener('click', async () => {
-        const query = sqlEditor ? sqlEditor.getValue().trim() : sqlQuery.value.trim();
+        // 优先使用当前显示的结果的SQL，如果没有则使用编辑器中的SQL
+        const currentResult = queryResultsHistory.getCurrent();
+        let query = '';
+        if (currentResult) {
+            query = currentResult.query;
+        } else {
+            query = sqlEditor ? sqlEditor.getValue().trim() : sqlQuery.value.trim();
+        }
+        
         if (!query) {
             showNotification(t('query.empty'), 'error');
             return;

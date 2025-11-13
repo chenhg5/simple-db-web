@@ -198,10 +198,17 @@
                             <button class="btn btn-secondary" id="exportQueryBtn" data-i18n="query.exportExcel" style="display: none;">导出Excel</button>
                         </div>
                     </div>
+                    <div class="query-results-container" id="queryResultsContainer" style="position: relative;">
+                        <!-- 查询结果Tab切换 -->
+                        <div class="query-results-tabs" id="queryResultsTabs" style="display: none; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem;">
+                            <div class="query-results-tabs-list" id="queryResultsTabsList" style="display: flex; gap: 0.5rem; overflow-x: auto; padding: 0.5rem 0;"></div>
+                        </div>
+                        <!-- 查询结果内容区 -->
                     <div class="query-results" id="queryResults" style="position: relative;">
                         <div class="loading-overlay" id="queryLoading" style="display: none;">
                             <div class="loading-spinner"></div>
-                            <div class="loading-text" data-i18n="common.loading">执行中...</div>
+                                <div class="loading-text" data-i18n="common.loading">执行中...</div>
+                            </div>
                         </div>
                     </div>
                 </div>
