@@ -1,123 +1,195 @@
-# 数据库管理工具
+# SimpleDBWeb - Database Management Tool
 
-一个使用 Go 和 Go Template 实现的现代化数据库管理 Web 工具，支持 MySQL 等数据库。
+A modern database management web tool implemented with Go and Go Template, supporting multiple database types.
 
-## 功能特性
+## Features
 
-- ✅ 建立数据库连接（支持 DSN 或表单输入）
-- ✅ 列出数据库中的所有表
-- ✅ 展示数据表的结构
-- ✅ 支持数据表的查询（分页）
-- ✅ 支持对数据表某一行数据的编辑
-- ✅ 支持对数据表某一行数据的删除
-- ✅ 支持写查询 SQL，展示查询结果
-- ✅ 模块化设计，易于扩展支持其他数据库
-- ✅ 现代化 UI，黄色主题（类似 Beekeeper Studio）
+- ✅ Establish database connections (supports DSN or form input)
+- ✅ List all tables in the database
+- ✅ Display table structure (supports one-click copy)
+- ✅ Query table data (with pagination)
+- ✅ Edit row data in tables
+- ✅ Delete row data in tables
+- ✅ Execute SQL queries and display results
+- ✅ Modular design, easy to extend support for other databases
+- ✅ Modern UI with yellow theme (similar to Beekeeper Studio)
+- ✅ Support for multi-instance deployment (via custom session storage)
+- ✅ Adapter pattern, supports integration with Gin, Echo, and other web frameworks
+- ✅ Embedded resources, supports importing via go mod
 
-## 编译
+## Supported Databases
+
+- MySQL
+- PostgreSQL
+- SQLite
+- ClickHouse
+- Dameng (达梦)
+- OpenGauss
+- Vastbase
+- Kingbase (人大金仓)
+- OceanDB
+
+## Quick Start
+
+### Build
 
 ```bash
 go build -o dbweb
 ```
 
-## 运行
+### Run
 
 ```bash
 ./dbweb
 ```
 
-服务器将在 `http://localhost:8080` 启动。
+The server will start at `http://localhost:8080`.
 
-## 使用说明
+### Use as a Library
 
-1. **连接数据库**
-   - 选择数据库类型（目前支持 MySQL）
-   - 选择连接方式：
-     - DSN 连接字符串：直接输入完整的 DSN，如 `user:password@tcp(host:port)/database`
-     - 表单输入：分别输入主机、端口、用户名、密码、数据库名
-   - 点击"连接"按钮
+```go
+package main
 
-2. **查看表列表**
-   - 连接成功后，左侧会显示所有数据表
-   - 点击表名可以查看表的数据和结构
+import (
+    "github.com/chenhg5/simple-db-web/handlers"
+    "log"
+)
 
-3. **查看表数据**
-   - 在"数据"标签页中查看表的数据
-   - 支持分页浏览
-   - 可以编辑或删除某一行数据
+func main() {
+    server, err := handlers.NewServer()
+    if err != nil {
+        log.Fatalf("Failed to create server: %v", err)
+    }
 
-4. **查看表结构**
-   - 在"结构"标签页中查看表的 CREATE TABLE 语句
+    // Use standard library
+    server.SetupRoutes()
+    server.Start(":8080")
 
-5. **执行 SQL 查询**
-   - 在"SQL查询"标签页中输入 SQL 语句
-   - 支持 SELECT、UPDATE、DELETE、INSERT 等操作
-   - 点击"执行查询"按钮执行
+    // Or use Gin framework
+    // router := handlers.NewGinRouter(nil)
+    // server.RegisterRoutes(router)
+    // router.Engine().Run(":8080")
+}
+```
 
-## 项目结构
+## Usage
+
+1. **Connect to Database**
+   - Select database type
+   - Choose connection method:
+     - DSN connection string: Enter full DSN directly, e.g., `user:password@tcp(host:port)/database`
+     - Form input: Enter host, port, username, password separately
+   - Click "Connect" button
+
+2. **Select Database**
+   - After successful connection, select the database to operate on
+
+3. **View Table List**
+   - After selecting a database, all tables will be displayed on the left
+   - Click a table name to view its data and structure
+
+4. **View Table Data**
+   - View table data in the "Data" tab
+   - Supports pagination
+   - Can edit or delete row data
+   - Action column is fixed on the right for easy operation
+
+5. **View Table Structure**
+   - View CREATE TABLE statement in the "Structure" tab
+   - Supports one-click copy of table structure
+
+6. **Execute SQL Queries**
+   - Enter SQL statements in the "SQL Query" tab
+   - Supports SELECT, UPDATE, DELETE, INSERT operations
+   - Click "Execute Query" button to run
+
+## Project Structure
 
 ```
 dbweb/
-├── main.go              # 主程序入口
-├── database/            # 数据库接口和实现
-│   ├── interface.go     # Database 接口定义
-│   └── mysql.go         # MySQL 实现
-├── handlers/            # HTTP 处理器
-│   └── handlers.go      # 路由和处理器
-├── templates/           # HTML 模板
-│   └── index.html       # 主页面
-├── static/              # 静态资源
-│   ├── style.css        # 样式文件
-│   └── app.js           # 前端 JavaScript
-└── README.md            # 说明文档
+├── main.go              # Main program entry
+├── database/            # Database interface and implementations
+│   ├── interface.go     # Database interface definition
+│   ├── mysql.go         # MySQL implementation
+│   ├── postgresql.go    # PostgreSQL implementation
+│   ├── sqlite3.go       # SQLite implementation
+│   ├── clickhouse.go    # ClickHouse implementation
+│   └── mysql_based*.go  # MySQL-compatible database implementations
+├── handlers/            # HTTP handlers
+│   ├── handlers.go      # Routes and handlers
+│   ├── adapter*.go      # Adapter implementations (Gin, Echo, etc.)
+│   ├── embed.go         # Resource file embedding
+│   ├── templates/       # HTML templates
+│   │   └── index.html
+│   └── static/          # Static resources
+│       ├── style.css
+│       └── app.js
+├── examples/            # Usage examples
+│   ├── gin_example.go   # Gin framework example
+│   ├── echo_example.go  # Echo framework example
+│   └── ...
+├── docs/                # Documentation
+│   ├── zh/              # Chinese documentation
+│   └── en/              # English documentation
+└── README.md            # Documentation
 ```
 
-## 扩展支持其他数据库
+## Extending Functionality
 
-要实现其他数据库的支持，只需：
+### Extend Support for Other Databases
 
-1. 在 `database/` 目录下创建新的实现文件（如 `postgresql.go`）
-2. 实现 `Database` 接口
-3. 在 `handlers/handlers.go` 的 `Connect` 函数中添加新的数据库类型支持
+To add support for other databases:
 
-示例：
+1. Create a new implementation file in the `database/` directory
+2. Implement the `Database` interface
+3. Add the new database type in `handlers/handlers.go`'s `NewServer` function
+
+Or use the `AddDatabase` method to register dynamically:
 
 ```go
-// database/postgresql.go
-type PostgreSQL struct {
-    db *sql.DB
-}
-
-func (p *PostgreSQL) Connect(dsn string) error {
-    // 实现连接逻辑
-}
-
-// ... 实现其他接口方法
+server.AddDatabase("custom_db", func() database.Database {
+    return &MyCustomDatabase{}
+})
 ```
 
-## 技术栈
+### Integrate with Other Web Frameworks
 
-- **后端**: Go 1.23+
-- **数据库驱动**: github.com/go-sql-driver/mysql
-- **前端**: 原生 JavaScript + CSS
-- **模板**: Go Template
+Supports Gin, Echo, and other frameworks. See [Adapter Usage Guide](docs/en/ADAPTER_USAGE.md) for details.
 
-## 注意事项
+### Custom Session Storage
 
-- 目前仅支持 MySQL 数据库
-- 编辑和删除操作基于主键（PRI）
-- SQL 查询中的字符串值已做基本的转义处理，但建议在生产环境中使用参数化查询
+Supports persistent storage like Redis, MySQL for multi-instance deployment. See [Session Storage Usage Guide](docs/en/SESSION_STORAGE_USAGE.md) for details.
 
-## TODO
+### Custom JavaScript Logic
 
-- 支持sqlite
-- 支持postgres
-- 支持clickhouse
-- 密码支持显示
-- 刷新支持保持原有连接
-- 支持大模型接入
+Supports injecting custom JavaScript, such as adding authentication tokens. See [Custom JS Usage Guide](docs/en/CUSTOM_JS_USAGE.md) for details.
 
-## 许可证
+## Tech Stack
+
+- **Backend**: Go 1.16+
+- **Database Drivers**: 
+  - MySQL: `github.com/go-sql-driver/mysql`
+  - PostgreSQL: `github.com/lib/pq`
+  - SQLite: `github.com/mattn/go-sqlite3`
+  - ClickHouse: `github.com/ClickHouse/clickhouse-go/v2`
+- **Frontend**: Vanilla JavaScript + CSS
+- **Templates**: Go Template
+- **Resource Embedding**: Go 1.16+ embed
+
+## Documentation
+
+- [Adapter Usage Guide](docs/en/ADAPTER_USAGE.md) - How to integrate with Gin, Echo, and other frameworks
+- [Session Storage Usage Guide](docs/en/SESSION_STORAGE_USAGE.md) - How to implement multi-instance deployment
+- [Custom JS Usage Guide](docs/en/CUSTOM_JS_USAGE.md) - How to add custom JavaScript logic
+- [Embed Usage Guide](docs/en/EMBED_USAGE.md) - Resource file embedding guide
+
+## Notes
+
+- Edit and delete operations are based on primary keys (PRI)
+- String values in SQL queries are escaped, but parameterized queries are recommended in production
+- For multi-instance deployment, Redis or MySQL is recommended as session storage
+
+## License
 
 MIT
 
