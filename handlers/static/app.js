@@ -1,3 +1,428 @@
+// ==================== i18n 国际化支持 ====================
+// 语言配置
+const i18n = {
+    currentLang: 'zh-CN', // 默认简体中文
+    translations: {
+        'en': {
+            // 通用
+            'common.loading': 'Loading...',
+            'common.confirm': 'Confirm',
+            'common.cancel': 'Cancel',
+            'common.delete': 'Delete',
+            'common.edit': 'Edit',
+            'common.save': 'Save',
+            'common.refresh': 'Refresh',
+            'common.close': 'Close',
+            'common.clear': 'Clear',
+            'common.clearAll': 'Clear All',
+            'common.switch': 'Switch',
+            'common.disconnect': 'Disconnect',
+            'common.connect': 'Connect',
+            'common.connected': 'Connected',
+            'common.disconnected': 'Disconnected',
+            'common.noData': 'No Data',
+            'common.operation': 'Operation',
+            'common.null': 'NULL',
+            
+            // 连接管理
+            'connection.management': 'Connection Management',
+            'connection.new': '+ New Connection',
+            'connection.newTitle': 'New Database Connection',
+            'connection.noActive': 'No Active Connections',
+            'connection.saved': 'Saved Connections',
+            'connection.remember': 'Remember Connection',
+            'connection.mode': 'Connection Mode',
+            'connection.modeForm': 'Form Input',
+            'connection.modeDSN': 'DSN Connection String',
+            'connection.dbType': 'Database Type',
+            'connection.host': 'Host',
+            'connection.port': 'Port',
+            'connection.user': 'Username',
+            'connection.password': 'Password',
+            'connection.database': 'Database',
+            'connection.selectDatabase': 'Please select database...',
+            'connection.success': 'Connection successful',
+            'connection.failed': 'Connection failed',
+            'connection.disconnected': 'Disconnected',
+            'connection.switched': 'Switched to connection',
+            'connection.notExists': 'Connection does not exist',
+            'connection.noActiveConn': 'No active connection',
+            'connection.id': 'Connection ID',
+            'connection.noSaved': 'No saved connections',
+            
+            // 代理
+            'proxy.use': 'Use Proxy (SSH, etc.)',
+            'proxy.type': 'Proxy Type',
+            'proxy.host': 'Proxy Host',
+            'proxy.port': 'Proxy Port',
+            'proxy.user': 'Proxy Username',
+            'proxy.password': 'Proxy Password',
+            'proxy.key': 'SSH Private Key (optional, base64 encoded)',
+            'proxy.keyHint': 'If a private key is provided, key authentication will be prioritized',
+            'proxy.required': 'Please fill in proxy host and username',
+            
+            // 数据库和表
+            'db.select': 'Select Database',
+            'db.tables': 'Data Tables',
+            'db.noTables': 'No tables found',
+            'db.filterTables': 'Filter table names...',
+            'db.selectTable': 'Please select a table to view schema',
+            
+            // 数据标签页
+            'tab.data': 'Data',
+            'tab.schema': 'Schema',
+            'tab.query': 'SQL Query',
+            'data.perPage': 'Per Page:',
+            'data.total': 'Total {total} records, Page {page}/{totalPages}',
+            'data.clickhouseNoPagination': 'Showing first 10 records (ClickHouse does not support pagination)',
+            'data.prevPage': 'Previous',
+            'data.nextPage': 'Next',
+            'data.copySchema': 'Copy',
+            'data.copySchemaTitle': 'Copy Schema',
+            
+            // SQL查询
+            'query.placeholder': 'Enter SQL query...',
+            'query.execute': 'Execute Query',
+            'query.empty': 'Please enter SQL query',
+            'query.emptyResult': 'Query result is empty',
+            'query.success': 'Operation successful, {affected} rows affected',
+            'query.failed': 'Execution failed',
+            'query.unsupported': 'Unsupported SQL type',
+            
+            // 编辑和删除
+            'edit.title': 'Edit Row Data',
+            'edit.save': 'Update successful',
+            'edit.failed': 'Update failed',
+            'delete.title': 'Confirm Delete',
+            'delete.message': 'Are you sure you want to delete this row? This operation cannot be undone.',
+            'delete.success': 'Delete successful',
+            'delete.failed': 'Delete failed',
+            'delete.connection': 'Confirm Delete Connection',
+            'delete.connectionMessage': 'Are you sure you want to delete this saved connection? This operation cannot be undone.',
+            'delete.connectionSuccess': 'Connection deleted',
+            'delete.clearAll': 'Confirm Clear All Connections',
+            'delete.clearAllMessage': 'Are you sure you want to clear all saved connections? This operation cannot be undone.',
+            'delete.clearAllSuccess': 'All saved connections cleared',
+            
+            // 错误消息
+            'error.selectDbType': 'Please select database type',
+            'error.fillHostUser': 'Please fill in host and username',
+            'error.enterDSN': 'Please enter DSN connection string',
+            'error.loadDbTypes': 'Failed to load database types',
+            'error.loadDatabases': 'Failed to load database list',
+            'error.loadTables': 'Failed to load table list',
+            'error.loadData': 'Failed to load data',
+            'error.loadSchema': 'Failed to load schema',
+            'error.loadColumns': 'Failed to load column information',
+            'error.switchDatabase': 'Failed to switch database',
+            'error.copyFailed': 'Copy failed, please copy manually',
+            'error.copySuccess': 'Schema copied to clipboard',
+            'error.noContent': 'No content to copy',
+            
+            // 语言切换
+            'lang.en': 'English',
+            'lang.zh-CN': '简体中文',
+            'lang.zh-TW': '繁體中文',
+            'lang.switch': 'Language'
+        },
+        'zh-CN': {
+            // 通用
+            'common.loading': '加载中...',
+            'common.confirm': '确认',
+            'common.cancel': '取消',
+            'common.delete': '删除',
+            'common.edit': '编辑',
+            'common.save': '保存',
+            'common.refresh': '刷新',
+            'common.close': '关闭',
+            'common.clear': '清空',
+            'common.clearAll': '清除所有',
+            'common.switch': '切换',
+            'common.disconnect': '断开',
+            'common.connect': '连接',
+            'common.connected': '已连接',
+            'common.disconnected': '未连接',
+            'common.noData': '没有数据',
+            'common.operation': '操作',
+            'common.null': 'NULL',
+            
+            // 连接管理
+            'connection.management': '连接管理',
+            'connection.new': '+ 新增连接',
+            'connection.newTitle': '新增数据库连接',
+            'connection.noActive': '暂无活动连接',
+            'connection.saved': '已保存的连接',
+            'connection.remember': '记住连接',
+            'connection.mode': '连接方式',
+            'connection.modeForm': '表单输入',
+            'connection.modeDSN': 'DSN连接字符串',
+            'connection.dbType': '数据库类型',
+            'connection.host': '主机',
+            'connection.port': '端口',
+            'connection.user': '用户名',
+            'connection.password': '密码',
+            'connection.database': '数据库',
+            'connection.selectDatabase': '请选择数据库...',
+            'connection.success': '连接成功',
+            'connection.failed': '连接失败',
+            'connection.disconnected': '已断开连接',
+            'connection.switched': '已切换到连接',
+            'connection.notExists': '连接不存在',
+            'connection.noActiveConn': '没有活动连接',
+            'connection.id': '连接ID',
+            'connection.noSaved': '暂无保存的连接',
+            
+            // 代理
+            'proxy.use': '使用代理（SSH等）',
+            'proxy.type': '代理类型',
+            'proxy.host': '代理主机',
+            'proxy.port': '代理端口',
+            'proxy.user': '代理用户名',
+            'proxy.password': '代理密码',
+            'proxy.key': 'SSH私钥（可选，base64编码）',
+            'proxy.keyHint': '如果提供了私钥，将优先使用私钥认证',
+            'proxy.required': '请填写代理主机和用户名',
+            
+            // 数据库和表
+            'db.select': '选择数据库',
+            'db.tables': '数据表',
+            'db.noTables': '没有找到表',
+            'db.filterTables': '筛选表名...',
+            'db.selectTable': '请选择一个表查看结构',
+            
+            // 数据标签页
+            'tab.data': '数据',
+            'tab.schema': '结构',
+            'tab.query': 'SQL查询',
+            'data.perPage': '每页:',
+            'data.total': '共 {total} 条，第 {page}/{totalPages} 页',
+            'data.clickhouseNoPagination': '显示前 10 条数据（ClickHouse 不支持分页）',
+            'data.prevPage': '上一页',
+            'data.nextPage': '下一页',
+            'data.copySchema': '复制',
+            'data.copySchemaTitle': '复制结构',
+            
+            // SQL查询
+            'query.placeholder': '输入SQL查询...',
+            'query.execute': '执行查询',
+            'query.empty': '请输入SQL查询',
+            'query.emptyResult': '查询结果为空',
+            'query.success': '操作成功，影响 {affected} 行',
+            'query.failed': '执行失败',
+            'query.unsupported': '不支持的SQL类型',
+            
+            // 编辑和删除
+            'edit.title': '编辑行数据',
+            'edit.save': '更新成功',
+            'edit.failed': '更新失败',
+            'delete.title': '确认删除',
+            'delete.message': '确定要删除这行数据吗？此操作无法撤销。',
+            'delete.success': '删除成功',
+            'delete.failed': '删除失败',
+            'delete.connection': '确认删除连接',
+            'delete.connectionMessage': '确定要删除这个保存的连接吗？此操作无法撤销。',
+            'delete.connectionSuccess': '已删除连接',
+            'delete.clearAll': '确认清除所有连接',
+            'delete.clearAllMessage': '确定要清除所有保存的连接吗？此操作无法撤销。',
+            'delete.clearAllSuccess': '已清空所有保存的连接',
+            
+            // 错误消息
+            'error.selectDbType': '请选择数据库类型',
+            'error.fillHostUser': '请填写主机和用户名',
+            'error.enterDSN': '请输入DSN连接字符串',
+            'error.loadDbTypes': '加载数据库类型失败',
+            'error.loadDatabases': '获取数据库列表失败',
+            'error.loadTables': '加载表列表失败',
+            'error.loadData': '获取数据失败',
+            'error.loadSchema': '加载表结构失败',
+            'error.loadColumns': '获取列信息失败',
+            'error.switchDatabase': '切换数据库失败',
+            'error.copyFailed': '复制失败，请手动复制',
+            'error.copySuccess': '表结构已复制到剪贴板',
+            'error.noContent': '没有可复制的内容',
+            
+            // 语言切换
+            'lang.en': 'English',
+            'lang.zh-CN': '简体中文',
+            'lang.zh-TW': '繁體中文',
+            'lang.switch': '语言'
+        },
+        'zh-TW': {
+            // 通用
+            'common.loading': '載入中...',
+            'common.confirm': '確認',
+            'common.cancel': '取消',
+            'common.delete': '刪除',
+            'common.edit': '編輯',
+            'common.save': '儲存',
+            'common.refresh': '重新整理',
+            'common.close': '關閉',
+            'common.clear': '清空',
+            'common.clearAll': '清除所有',
+            'common.switch': '切換',
+            'common.disconnect': '斷開',
+            'common.connect': '連接',
+            'common.connected': '已連接',
+            'common.disconnected': '未連接',
+            'common.noData': '沒有資料',
+            'common.operation': '操作',
+            'common.null': 'NULL',
+            
+            // 连接管理
+            'connection.management': '連接管理',
+            'connection.new': '+ 新增連接',
+            'connection.newTitle': '新增資料庫連接',
+            'connection.noActive': '暫無活動連接',
+            'connection.saved': '已儲存的連接',
+            'connection.remember': '記住連接',
+            'connection.mode': '連接方式',
+            'connection.modeForm': '表單輸入',
+            'connection.modeDSN': 'DSN連接字串',
+            'connection.dbType': '資料庫類型',
+            'connection.host': '主機',
+            'connection.port': '埠號',
+            'connection.user': '使用者名稱',
+            'connection.password': '密碼',
+            'connection.database': '資料庫',
+            'connection.selectDatabase': '請選擇資料庫...',
+            'connection.success': '連接成功',
+            'connection.failed': '連接失敗',
+            'connection.disconnected': '已斷開連接',
+            'connection.switched': '已切換到連接',
+            'connection.notExists': '連接不存在',
+            'connection.noActiveConn': '沒有活動連接',
+            'connection.id': '連接ID',
+            'connection.noSaved': '暫無儲存的連接',
+            
+            // 代理
+            'proxy.use': '使用代理（SSH等）',
+            'proxy.type': '代理類型',
+            'proxy.host': '代理主機',
+            'proxy.port': '代理埠號',
+            'proxy.user': '代理使用者名稱',
+            'proxy.password': '代理密碼',
+            'proxy.key': 'SSH私鑰（可選，base64編碼）',
+            'proxy.keyHint': '如果提供了私鑰，將優先使用私鑰認證',
+            'proxy.required': '請填寫代理主機和使用者名稱',
+            
+            // 数据库和表
+            'db.select': '選擇資料庫',
+            'db.tables': '資料表',
+            'db.noTables': '沒有找到表',
+            'db.filterTables': '篩選表名...',
+            'db.selectTable': '請選擇一個表查看結構',
+            
+            // 数据标签页
+            'tab.data': '資料',
+            'tab.schema': '結構',
+            'tab.query': 'SQL查詢',
+            'data.perPage': '每頁:',
+            'data.total': '共 {total} 筆，第 {page}/{totalPages} 頁',
+            'data.clickhouseNoPagination': '顯示前 10 筆資料（ClickHouse 不支援分頁）',
+            'data.prevPage': '上一頁',
+            'data.nextPage': '下一頁',
+            'data.copySchema': '複製',
+            'data.copySchemaTitle': '複製結構',
+            
+            // SQL查询
+            'query.placeholder': '輸入SQL查詢...',
+            'query.execute': '執行查詢',
+            'query.empty': '請輸入SQL查詢',
+            'query.emptyResult': '查詢結果為空',
+            'query.success': '操作成功，影響 {affected} 行',
+            'query.failed': '執行失敗',
+            'query.unsupported': '不支援的SQL類型',
+            
+            // 编辑和删除
+            'edit.title': '編輯行資料',
+            'edit.save': '更新成功',
+            'edit.failed': '更新失敗',
+            'delete.title': '確認刪除',
+            'delete.message': '確定要刪除這行資料嗎？此操作無法復原。',
+            'delete.success': '刪除成功',
+            'delete.failed': '刪除失敗',
+            'delete.connection': '確認刪除連接',
+            'delete.connectionMessage': '確定要刪除這個儲存的連接嗎？此操作無法復原。',
+            'delete.connectionSuccess': '已刪除連接',
+            'delete.clearAll': '確認清除所有連接',
+            'delete.clearAllMessage': '確定要清除所有儲存的連接嗎？此操作無法復原。',
+            'delete.clearAllSuccess': '已清空所有儲存的連接',
+            
+            // 错误消息
+            'error.selectDbType': '請選擇資料庫類型',
+            'error.fillHostUser': '請填寫主機和使用者名稱',
+            'error.enterDSN': '請輸入DSN連接字串',
+            'error.loadDbTypes': '載入資料庫類型失敗',
+            'error.loadDatabases': '取得資料庫列表失敗',
+            'error.loadTables': '載入表列表失敗',
+            'error.loadData': '取得資料失敗',
+            'error.loadSchema': '載入表結構失敗',
+            'error.loadColumns': '取得欄位資訊失敗',
+            'error.switchDatabase': '切換資料庫失敗',
+            'error.copyFailed': '複製失敗，請手動複製',
+            'error.copySuccess': '表結構已複製到剪貼簿',
+            'error.noContent': '沒有可複製的內容',
+            
+            // 语言切换
+            'lang.en': 'English',
+            'lang.zh-CN': '简体中文',
+            'lang.zh-TW': '繁體中文',
+            'lang.switch': '語言'
+        }
+    },
+    
+    // 翻译函数
+    t(key, params = {}) {
+        const lang = this.currentLang;
+        const translation = this.translations[lang]?.[key] || key;
+        
+        // 支持参数替换 {param}
+        return translation.replace(/\{(\w+)\}/g, (match, param) => {
+            return params[param] !== undefined ? params[param] : match;
+        });
+    },
+    
+    // 设置语言
+    setLanguage(lang) {
+        if (this.translations[lang]) {
+            this.currentLang = lang;
+            localStorage.setItem('simple-db-web-lang', lang);
+            document.documentElement.lang = lang === 'en' ? 'en' : (lang === 'zh-TW' ? 'zh-TW' : 'zh-CN');
+            this.updateUI();
+        }
+    },
+    
+    // 初始化语言
+    init() {
+        const savedLang = localStorage.getItem('simple-db-web-lang');
+        if (savedLang && this.translations[savedLang]) {
+            // 如果 localStorage 中有保存的语言，使用保存的语言
+            this.currentLang = savedLang;
+        } else {
+            // 默认使用简体中文
+            this.currentLang = 'zh-CN';
+            // 保存默认语言到 localStorage
+            localStorage.setItem('simple-db-web-lang', 'zh-CN');
+        }
+        document.documentElement.lang = this.currentLang === 'en' ? 'en' : (this.currentLang === 'zh-TW' ? 'zh-TW' : 'zh-CN');
+    },
+    
+    // 更新UI文本
+    updateUI() {
+        // 触发自定义事件，让其他代码更新文本
+        window.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang: this.currentLang } }));
+    }
+};
+
+// 简化的翻译函数
+function t(key, params = {}) {
+    return i18n.t(key, params);
+}
+
+// 导出到全局
+window.i18n = i18n;
+window.t = t;
+
 // ==================== 全局配置和扩展机制 ====================
 // 全局配置对象，允许外部项目自定义行为
 window.SimpleDBConfig = window.SimpleDBConfig || {
@@ -195,18 +620,74 @@ let deleteConnectionIndex = null;
 // 活动连接列表（支持多个连接）
 let activeConnections = new Map(); // connectionId -> connectionInfo
 
-// 密码显示/隐藏切换
-if (togglePassword) {
-    togglePassword.addEventListener('click', () => {
-        const passwordInput = document.getElementById('password');
-        if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';
-            togglePassword.textContent = '🙈';
-        } else {
-            passwordInput.type = 'password';
-            togglePassword.textContent = '👁️';
+// 语言切换相关
+const languageSelect = document.getElementById('languageSelect');
+
+// 更新所有带有 data-i18n 属性的元素
+function updateI18nElements() {
+    // 更新 textContent
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (key && !el.hasAttribute('data-i18n-ignore')) {
+            el.textContent = t(key);
         }
     });
+    
+    // 更新 placeholder
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (key) {
+            el.placeholder = t(key);
+        }
+    });
+    
+    // 更新 title
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (key) {
+            el.title = t(key);
+        }
+    });
+    
+    // 更新 value（用于 select option）
+    document.querySelectorAll('[data-i18n-value]').forEach(el => {
+        const key = el.getAttribute('data-i18n-value');
+        if (key) {
+            el.value = t(key);
+        }
+    });
+}
+
+// 语言切换事件
+if (languageSelect) {
+    languageSelect.addEventListener('change', (e) => {
+        i18n.setLanguage(e.target.value);
+        updateI18nElements();
+        // 更新语言选择器的值
+        languageSelect.value = i18n.currentLang;
+    });
+}
+
+// 监听语言变化事件
+window.addEventListener('languageChanged', () => {
+    updateI18nElements();
+    if (languageSelect) {
+        languageSelect.value = i18n.currentLang;
+    }
+});
+
+// 密码显示/隐藏切换
+if (togglePassword) {
+togglePassword.addEventListener('click', () => {
+    const passwordInput = document.getElementById('password');
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        togglePassword.textContent = '🙈';
+    } else {
+        passwordInput.type = 'password';
+        togglePassword.textContent = '👁️';
+    }
+});
 }
 
 // 代理密码显示/隐藏切换
@@ -370,7 +851,7 @@ function loadSavedConnections() {
         deleteBtn.className = 'btn btn-secondary';
         deleteBtn.style.cssText = 'flex-shrink: 0; width: 2rem; padding: 0.5rem; font-size: 0.875rem; line-height: 1;';
         deleteBtn.textContent = '×';
-        deleteBtn.title = '删除';
+        deleteBtn.title = t('common.delete');
         deleteBtn.dataset.index = index;
         
         // 点击连接按钮
@@ -510,7 +991,7 @@ confirmDeleteConnection.addEventListener('click', () => {
         deleteSavedConnection(deleteConnectionIndex);
         deleteConnectionModal.style.display = 'none';
         deleteConnectionIndex = null;
-        showNotification('已删除连接', 'success');
+        showNotification(t('delete.connectionSuccess'), 'success');
     }
 });
 
@@ -535,7 +1016,7 @@ confirmClearAllConnections.addEventListener('click', () => {
     localStorage.removeItem('savedConnections');
     loadSavedConnections();
     clearAllConnectionsModal.style.display = 'none';
-    showNotification('已清空所有保存的连接', 'success');
+    showNotification(t('delete.clearAllSuccess'), 'success');
 });
 
 // 取消清除所有连接
@@ -695,8 +1176,21 @@ async function restoreConnection() {
     }
 }
 
-// 页面加载完成后尝试恢复连接
+// 页面加载完成后初始化 i18n 和恢复连接
 document.addEventListener('DOMContentLoaded', () => {
+    // 初始化 i18n（从 localStorage 读取或使用默认值）
+    i18n.init();
+    
+    // 更新所有翻译元素
+    updateI18nElements();
+    
+    // 确保语言选择框的值正确设置
+    const langSelect = document.getElementById('languageSelect');
+    if (langSelect) {
+        langSelect.value = i18n.currentLang;
+    }
+    
+    // 恢复连接
     restoreConnection();
 });
 
@@ -745,8 +1239,8 @@ if (confirmNewConnection) {
 
 // 连接表单提交（兼容旧代码）
 if (connectionForm) {
-    connectionForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+connectionForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
         await handleConnect();
     });
 }
@@ -770,15 +1264,15 @@ async function handleConnect() {
         const dsnInput = document.getElementById('dsn');
         if (dsnInput && dsnInput.value) {
             connectionInfo.dsn = dsnInput.value;
-        } else {
-            showNotification('请输入DSN连接字符串', 'error');
+    } else {
+            showNotification(t('error.enterDSN'), 'error');
             return;
         }
     } else {
         const hostInput = document.getElementById('host');
         const userInput = document.getElementById('user');
         if (!hostInput || !hostInput.value || !userInput || !userInput.value) {
-            showNotification('请填写主机和用户名', 'error');
+            showNotification(t('error.fillHostUser'), 'error');
             return;
         }
         connectionInfo.host = hostInput.value;
@@ -808,7 +1302,7 @@ async function handleConnect() {
         }
         
         if (!proxyConfig.host || !proxyConfig.user) {
-            showNotification('请填写代理主机和用户名', 'error');
+            showNotification(t('proxy.required'), 'error');
             return;
         }
         
@@ -905,8 +1399,8 @@ async function handleConnect() {
         showNotification('连接失败: ' + error.message, 'error');
     } finally {
         if (connectBtn) {
-            setButtonLoading(connectBtn, false);
-        }
+        setButtonLoading(connectBtn, false);
+    }
     }
 }
 
@@ -948,11 +1442,11 @@ function updateActiveConnectionsList() {
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="flex: 1; overflow: hidden;">
                     <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${displayText}">${displayText}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary);">连接ID: ${connId.substring(0, 8)}...</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">${t('connection.id')}: ${connId.substring(0, 8)}...</div>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
-                    <button class="btn btn-secondary switch-connection-btn" data-connection-id="${connId}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">切换</button>
-                    <button class="btn btn-danger disconnect-connection-btn" data-connection-id="${connId}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">断开</button>
+                    <button class="btn btn-secondary switch-connection-btn" data-connection-id="${connId}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">${t('common.switch')}</button>
+                    <button class="btn btn-danger disconnect-connection-btn" data-connection-id="${connId}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">${t('common.disconnect')}</button>
                 </div>
             </div>
         `;
@@ -976,7 +1470,7 @@ function updateActiveConnectionsList() {
 // 切换到指定连接
 async function switchToConnection(targetConnectionId) {
     if (!targetConnectionId || !activeConnections.has(targetConnectionId)) {
-        showNotification('连接不存在', 'error');
+        showNotification(t('connection.notExists'), 'error');
         return;
     }
     
@@ -997,7 +1491,7 @@ async function switchToConnection(targetConnectionId) {
     databasePanel.style.display = 'block';
     await loadDatabases(conn.databases || []);
     
-    showNotification('已切换到连接', 'success');
+    showNotification(t('connection.switched'), 'success');
 }
 
 // 断开指定连接
@@ -1030,19 +1524,19 @@ async function disconnectConnection(targetConnectionId) {
                 databasePanel.style.display = 'none';
                 tablesPanel.style.display = 'none';
                 currentTable = null;
-                databaseSelect.innerHTML = '<option value="">请选择数据库...</option>';
+                databaseSelect.innerHTML = `<option value="">${t('connection.selectDatabase')}</option>`;
                 tableFilter.value = '';
                 allTables = [];
                 currentColumns = [];
             }
             
             updateActiveConnectionsList();
-            showNotification('已断开连接', 'success');
+            showNotification(t('connection.disconnected'), 'success');
         } else {
-            showNotification(data.message || '断开连接失败', 'error');
+            showNotification(data.message || t('connection.failed'), 'error');
         }
     } catch (error) {
-        showNotification('断开连接失败: ' + error.message, 'error');
+        showNotification(t('connection.failed') + ': ' + error.message, 'error');
     } finally {
         setButtonLoading(disconnectBtn, false);
     }
@@ -1056,11 +1550,13 @@ function updateConnectionStatus(connected) {
     if (connected) {
         indicator.classList.add('connected');
         indicator.classList.remove('disconnected');
-        text.textContent = '已连接';
+        text.setAttribute('data-i18n', 'common.connected');
+        text.textContent = t('common.connected');
     } else {
         indicator.classList.remove('connected');
         indicator.classList.add('disconnected');
-        text.textContent = '未连接';
+        text.setAttribute('data-i18n', 'common.disconnected');
+        text.textContent = t('common.disconnected');
     }
 }
 
@@ -1141,7 +1637,7 @@ async function loadDatabases(databases) {
                 });
             }
         } catch (error) {
-            showNotification('获取数据库列表失败: ' + error.message, 'error');
+            showNotification(t('error.loadDatabases') + ': ' + error.message, 'error');
         } finally {
             hideLoading(databaseLoading);
         }
@@ -1167,7 +1663,7 @@ async function switchDatabase(databaseName) {
         const data = await response.json();
         
         if (response.ok && data.success) {
-            showNotification('切换数据库成功', 'success');
+            showNotification(t('connection.switched'), 'success');
             // 加载表列表
             if (data.tables) {
                 displayTables(data.tables);
@@ -1175,10 +1671,10 @@ async function switchDatabase(databaseName) {
                 await loadTables();
             }
         } else {
-            showNotification(data.message || '切换数据库失败', 'error');
+            showNotification(data.message || t('error.switchDatabase'), 'error');
         }
     } catch (error) {
-        showNotification('切换数据库失败: ' + error.message, 'error');
+        showNotification(t('error.switchDatabase') + ': ' + error.message, 'error');
     } finally {
         hideLoading(tablesLoading);
         setButtonLoading(databaseSelect, false);
@@ -1226,7 +1722,7 @@ tableFilter.addEventListener('input', filterTables);
 
 // 断开当前连接
 if (disconnectBtn) {
-    disconnectBtn.addEventListener('click', async () => {
+disconnectBtn.addEventListener('click', async () => {
         if (!connectionId) {
             showNotification('没有活动连接', 'error');
             return;
@@ -1244,7 +1740,7 @@ async function loadTables() {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            showNotification(data.message || '加载表列表失败', 'error');
+            showNotification(data.message || t('error.loadTables'), 'error');
             hideLoading(tablesLoading);
             setButtonLoading(refreshTables, false);
             return;
@@ -1254,7 +1750,7 @@ async function loadTables() {
             displayTables(data.tables || []);
         }
     } catch (error) {
-        showNotification('加载表列表失败: ' + error.message, 'error');
+        showNotification(t('error.loadTables') + ': ' + error.message, 'error');
     } finally {
         hideLoading(tablesLoading);
         setButtonLoading(refreshTables, false);
@@ -1301,7 +1797,7 @@ async function loadTableData() {
         const columnsData = await columnsResponse.json();
         
         if (!columnsResponse.ok || !columnsData.success) {
-            showNotification(columnsData.message || '获取列信息失败', 'error');
+            showNotification(columnsData.message || t('error.loadColumns'), 'error');
             hideLoading(dataLoading);
             setButtonLoading(refreshData, false);
             return;
@@ -1316,7 +1812,7 @@ async function loadTableData() {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            showNotification(data.message || '获取数据失败', 'error');
+            showNotification(data.message || t('error.loadData'), 'error');
             // 即使获取数据失败，如果有列信息，也要显示表头
             if (currentColumns.length > 0) {
                 displayTableData([], 0, false);
@@ -1344,7 +1840,7 @@ async function loadTableData() {
             updatePagination(data.total, data.page, data.pageSize, isClickHouse);
         }
     } catch (error) {
-        showNotification('加载数据失败: ' + error.message, 'error');
+        showNotification(t('error.loadData') + ': ' + error.message, 'error');
     } finally {
         hideLoading(dataLoading);
         setButtonLoading(refreshData, false);
@@ -1409,7 +1905,7 @@ function displayTableData(rows, total, isClickHouse = false) {
         const colSpan = columns.length + (isClickHouse ? 0 : 1); // 包括操作列
         emptyCell.colSpan = colSpan;
         emptyCell.style.cssText = 'text-align: center; padding: 2rem; color: var(--text-secondary);';
-        emptyCell.textContent = '没有数据';
+        emptyCell.textContent = t('common.noData');
         emptyRow.appendChild(emptyCell);
         dataTableBody.appendChild(emptyRow);
         return;
@@ -1426,7 +1922,7 @@ function displayTableData(rows, total, isClickHouse = false) {
             if (value === null || value === undefined) {
                 const nullSpan = document.createElement('span');
                 nullSpan.style.color = 'var(--text-secondary)';
-                nullSpan.textContent = 'NULL';
+            nullSpan.textContent = t('common.null');
                 td.appendChild(nullSpan);
             } else {
                 td.textContent = String(value);
@@ -1443,12 +1939,12 @@ function displayTableData(rows, total, isClickHouse = false) {
             
             const editBtn = document.createElement('button');
             editBtn.className = 'btn btn-secondary action-btn edit-row-btn';
-            editBtn.textContent = '编辑';
+            editBtn.textContent = t('common.edit');
             editBtn.dataset.row = JSON.stringify(row);
             
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn btn-danger action-btn delete-row-btn';
-            deleteBtn.textContent = '删除';
+            deleteBtn.textContent = t('common.delete');
             deleteBtn.dataset.row = JSON.stringify(row);
             
             actionWrapper.appendChild(editBtn);
@@ -1480,7 +1976,7 @@ function displayTableData(rows, total, isClickHouse = false) {
 function updatePagination(total, page, pageSize, isClickHouse = false) {
     if (isClickHouse) {
         // ClickHouse 不支持分页，只显示提示信息
-        paginationInfo.textContent = `显示前 10 条数据（ClickHouse 不支持分页）`;
+        paginationInfo.textContent = t('data.clickhouseNoPagination');
         pagination.innerHTML = '';
         return;
     }
@@ -1489,20 +1985,20 @@ function updatePagination(total, page, pageSize, isClickHouse = false) {
     
     // 如果没有数据，显示提示并禁用所有分页按钮
     if (total === 0) {
-        paginationInfo.textContent = '没有数据';
+        paginationInfo.textContent = t('common.noData');
         pagination.innerHTML = `
-            <button disabled>上一页</button>
-            <button disabled>下一页</button>
+            <button disabled>${t('data.prevPage')}</button>
+            <button disabled>${t('data.nextPage')}</button>
         `;
         return;
     }
     
-    paginationInfo.textContent = `共 ${total} 条，第 ${page}/${totalPages} 页`;
+    paginationInfo.textContent = t('data.total', { total, page, totalPages });
     
     let paginationHTML = '';
     // 上一页按钮：第一页或没有数据时禁用
     const prevDisabled = page === 1 || total === 0;
-    paginationHTML += `<button ${prevDisabled ? 'disabled' : ''} onclick="changePage(${page - 1})">上一页</button>`;
+    paginationHTML += `<button ${prevDisabled ? 'disabled' : ''} onclick="changePage(${page - 1})">${t('data.prevPage')}</button>`;
     
     // 页码按钮
     for (let i = Math.max(1, page - 2); i <= Math.min(totalPages, page + 2); i++) {
@@ -1511,7 +2007,7 @@ function updatePagination(total, page, pageSize, isClickHouse = false) {
     
     // 下一页按钮：最后一页或没有数据时禁用
     const nextDisabled = page >= totalPages || total === 0;
-    paginationHTML += `<button ${nextDisabled ? 'disabled' : ''} onclick="changePage(${page + 1})">下一页</button>`;
+    paginationHTML += `<button ${nextDisabled ? 'disabled' : ''} onclick="changePage(${page + 1})">${t('data.nextPage')}</button>`;
     pagination.innerHTML = paginationHTML;
 }
 
@@ -1542,7 +2038,7 @@ async function loadTableSchema() {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            showNotification(data.message || '加载表结构失败', 'error');
+            showNotification(data.message || t('error.loadSchema'), 'error');
             hideLoading(schemaLoading);
             copySchemaBtn.style.display = 'none';
             return;
@@ -1551,9 +2047,13 @@ async function loadTableSchema() {
         if (data.success) {
             schemaContent.textContent = data.schema;
             copySchemaBtn.style.display = 'block';
+            copySchemaBtn.setAttribute('data-i18n', 'data.copySchema');
+            copySchemaBtn.setAttribute('data-i18n-title', 'data.copySchemaTitle');
+            copySchemaBtn.textContent = t('data.copySchema');
+            copySchemaBtn.title = t('data.copySchemaTitle');
         }
     } catch (error) {
-        showNotification('加载表结构失败: ' + error.message, 'error');
+        showNotification(t('error.loadSchema') + ': ' + error.message, 'error');
         copySchemaBtn.style.display = 'none';
     } finally {
         hideLoading(schemaLoading);
@@ -1563,14 +2063,15 @@ async function loadTableSchema() {
 // 复制表结构
 copySchemaBtn.addEventListener('click', async () => {
     const schemaText = schemaContent.textContent;
-    if (!schemaText || schemaText === '请选择一个表查看结构') {
-        showNotification('没有可复制的内容', 'error');
+    const selectTableText = t('db.selectTable');
+    if (!schemaText || schemaText === selectTableText) {
+        showNotification(t('error.noContent'), 'error');
         return;
     }
     
     try {
         await navigator.clipboard.writeText(schemaText);
-        showNotification('表结构已复制到剪贴板', 'success');
+        showNotification(t('error.copySuccess'), 'success');
     } catch (error) {
         // 降级方案：使用传统方法
         const textArea = document.createElement('textarea');
@@ -1581,9 +2082,9 @@ copySchemaBtn.addEventListener('click', async () => {
         textArea.select();
         try {
             document.execCommand('copy');
-            showNotification('表结构已复制到剪贴板', 'success');
+            showNotification(t('error.copySuccess'), 'success');
         } catch (err) {
-            showNotification('复制失败，请手动复制', 'error');
+            showNotification(t('error.copyFailed'), 'error');
         }
         document.body.removeChild(textArea);
     }
@@ -1616,7 +2117,7 @@ function switchTab(tabName) {
 executeQuery.addEventListener('click', async () => {
     const query = sqlQuery.value.trim();
     if (!query) {
-        showNotification('请输入SQL查询', 'error');
+            showNotification(t('query.empty'), 'error');
         return;
     }
     
@@ -1631,7 +2132,7 @@ executeQuery.addEventListener('click', async () => {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            queryResults.innerHTML = `<div class="query-message error">${data.message || '执行失败'}</div>`;
+            queryResults.innerHTML = `<div class="query-message error">${data.message || t('query.failed')}</div>`;
             return;
         }
         
@@ -1641,11 +2142,11 @@ executeQuery.addEventListener('click', async () => {
                 displayQueryResults(data.data);
             } else if (data.affected !== undefined) {
                 // 更新/删除/插入结果
-                queryResults.innerHTML = `<div class="query-message success">操作成功，影响 ${data.affected} 行</div>`;
+                queryResults.innerHTML = `<div class="query-message success">${t('query.success', { affected: data.affected })}</div>`;
             }
         }
     } catch (error) {
-        queryResults.innerHTML = `<div class="query-message error">执行失败: ${error.message}</div>`;
+        queryResults.innerHTML = `<div class="query-message error">${t('query.failed')}: ${error.message}</div>`;
     } finally {
         hideLoading(queryLoading);
         setButtonLoading(executeQuery, false);
@@ -1655,7 +2156,7 @@ executeQuery.addEventListener('click', async () => {
 // 显示查询结果
 function displayQueryResults(rows) {
     if (rows.length === 0) {
-        queryResults.innerHTML = '<div class="query-message">查询结果为空</div>';
+        queryResults.innerHTML = `<div class="query-message">${t('query.emptyResult')}</div>`;
         return;
     }
     
@@ -1756,17 +2257,17 @@ saveEdit.addEventListener('click', async () => {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            showNotification(data.message || '更新失败', 'error');
+            showNotification(data.message || t('edit.failed'), 'error');
             return;
         }
         
         if (response.ok && data.success) {
-            showNotification('更新成功', 'success');
+            showNotification(t('edit.save'), 'success');
             editModal.style.display = 'none';
             loadTableData();
         }
     } catch (error) {
-        showNotification('更新失败: ' + error.message, 'error');
+        showNotification(t('edit.failed') + ': ' + error.message, 'error');
     }
 });
 
@@ -1810,17 +2311,17 @@ confirmDelete.addEventListener('click', async () => {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            showNotification(data.message || '删除失败', 'error');
+            showNotification(data.message || t('delete.failed'), 'error');
             return;
         }
         
         if (response.ok && data.success) {
-            showNotification('删除成功', 'success');
+            showNotification(t('delete.success'), 'success');
             deleteModal.style.display = 'none';
             loadTableData();
         }
     } catch (error) {
-        showNotification('删除失败: ' + error.message, 'error');
+        showNotification(t('delete.failed') + ': ' + error.message, 'error');
     } finally {
         setButtonLoading(confirmDelete, false);
     }

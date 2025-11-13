@@ -29,43 +29,42 @@
             <!-- 连接管理面板 -->
             <div class="panel connections-panel" id="connectionsPanel">
                 <div class="panel-header">
-                    <h2 class="panel-title">连接管理</h2>
+                    <h2 class="panel-title" data-i18n="connection.management">连接管理</h2>
                     <button class="btn btn-primary" id="newConnectionBtn"
-                        style="font-size: 0.875rem; padding: 0.5rem 0.75rem;margin-bottom: 10px;">
-                        + 新增连接
-                    </button>
-                </div>
+                        style="font-size: 0.875rem; padding: 0.5rem 0.75rem;margin-bottom: 10px;"
+                        data-i18n="connection.new">+ 新增连接</button>
+                        </div>
                 <!-- 活动连接列表 -->
                 <div class="active-connections-list" id="activeConnectionsList">
-                    <div style="padding: 1rem; color: var(--text-secondary); text-align: center; font-size: 0.875rem;">
-                        暂无活动连接
-                    </div>
+                    <div style="padding: 1rem; color: var(--text-secondary); text-align: center; font-size: 0.875rem;"
+                        data-i18n="connection.noActive">暂无活动连接</div>
                 </div>
-                
+
                 <!-- 已保存的连接列表 -->
                 <div class="saved-connections-section" id="savedConnectionsSection" style="margin-top: 1rem;">
                     <div class="panel-header" style="margin-bottom: 0.5rem;">
-                        <h3 class="panel-title" style="font-size: 0.875rem; font-weight: 600;">已保存的连接</h3>
+                        <h3 class="panel-title" style="font-size: 0.875rem; font-weight: 600;" data-i18n="connection.saved">已保存的连接</h3>
                         <button class="btn btn-secondary" id="clearSavedConnections"
-                            style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">清除所有</button>
+                        style="font-size: 0.75rem;padding: 0.25rem 0.5rem;margin-bottom: 15px;" data-i18n="common.clearAll">清除所有</button>
                     </div>
                     <div class="saved-connections-list" id="savedConnectionsList"></div>
                 </div>
-            </div>
+                </div>
 
                 <!-- 数据库选择面板 -->
                 <div class="panel database-panel" id="databasePanel" style="display: none;">
                     <div class="panel-header">
-                        <h2 class="panel-title">选择数据库</h2>
+                        <h2 class="panel-title" data-i18n="db.select">选择数据库</h2>
                         <button class="btn btn-secondary" id="disconnectBtn"
-                            style="font-size: 0.875rem; padding: 0.25rem 0.5rem; margin-bottom: 16px;">断开连接</button>
+                            style="font-size: 0.875rem; padding: 0.25rem 0.5rem; margin-bottom: 16px;"
+                            data-i18n="common.disconnect">断开连接</button>
                     </div>
                     <div class="form-group" style="position: relative;">
                         <div class="loading-overlay-small" id="databaseLoading" style="display: none;">
                             <div class="loading-spinner-small"></div>
                         </div>
                         <select id="databaseSelect" class="form-control">
-                            <option value="">请选择数据库...</option>
+                            <option value="" data-i18n="connection.selectDatabase">请选择数据库...</option>
                         </select>
                     </div>
                 </div>
@@ -73,12 +72,14 @@
                 <!-- 表列表 -->
                 <div class="panel tables-panel" id="tablesPanel" style="display: none;">
                     <div class="panel-header">
-                        <h2 class="panel-title">数据表</h2>
+                        <h2 class="panel-title" data-i18n="db.tables">数据表</h2>
                         <button class="btn btn-secondary" id="refreshTables"
-                            style="font-size: 0.875rem; padding: 0.25rem 0.5rem; margin-bottom: 16px;">刷新</button>
+                            style="font-size: 0.875rem; padding: 0.25rem 0.5rem; margin-bottom: 16px;"
+                            data-i18n="common.refresh">刷新</button>
                     </div>
                     <div class="form-group" style="margin-bottom: 0.5rem;">
-                        <input type="text" id="tableFilter" class="form-control" placeholder="筛选表名..." style="margin-bottom: 0;">
+                        <input type="text" id="tableFilter" class="form-control" data-i18n-placeholder="db.filterTables" placeholder="筛选表名..."
+                            style="margin-bottom: 0;">
                     </div>
                     <div style="position: relative; min-height: 100px;">
                         <div class="loading-overlay-small" id="tablesLoading" style="display: none;">
@@ -96,10 +97,19 @@
                 <div class="header-content">
                     <div class="connection-status" id="connectionStatus">
                         <span class="status-indicator disconnected"></span>
-                        <span>未连接</span>
+                        <span data-i18n="common.disconnected">未连接</span>
                     </div>
                     <div class="connection-info" id="connectionInfo" style="display: none; margin-left: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
                         <span id="connectionInfoText"></span>
+                    </div>
+                    <!-- 语言切换 -->
+                    <div style="margin-left: auto; display: flex; align-items: center; gap: 0.5rem;">
+                        <select id="languageSelect"
+                            style="padding: 0.25rem 0.5rem; font-size: 0.875rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--surface); color: var(--text-primary);">
+                            <option value="en">English</option>
+                            <option value="zh-CN">简体中文</option>
+                            <option value="zh-TW">繁體中文</option>
+                        </select>
                     </div>
                 </div>
             </header>
@@ -108,18 +118,19 @@
             <main class="content-area">
                 <!-- 标签页导航 -->
                 <div class="tabs" id="tabs">
-                    <button class="tab active" data-tab="data">数据</button>
-                    <button class="tab" data-tab="schema">结构</button>
-                    <button class="tab" data-tab="query">SQL查询</button>
+                    <button class="tab active" data-tab="data" data-i18n="tab.data">数据</button>
+                    <button class="tab" data-tab="schema" data-i18n="tab.schema">结构</button>
+                    <button class="tab" data-tab="query" data-i18n="tab.query">SQL查询</button>
                 </div>
 
                 <!-- 数据标签页 -->
                 <div class="tab-content active" id="dataTab">
                     <div class="toolbar">
-                        <button class="btn btn-secondary" id="refreshData">刷新</button>
+                        <button class="btn btn-secondary" id="refreshData" data-i18n="common.refresh">刷新</button>
                         <div class="pagination-info" id="paginationInfo"></div>
                         <div class="pagination-size-selector">
-                            <label for="pageSizeSelect" style="margin-right: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">每页:</label>
+                            <label for="pageSizeSelect" style="margin-right: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;"
+                                data-i18n="data.perPage">每页:</label>
                             <select id="pageSizeSelect" class="form-control" style="width: auto; padding: 0.4rem 0.6rem; font-size: 0.875rem;">
                                 <option value="5">5</option>
                                 <option value="10">10</option>
@@ -132,7 +143,7 @@
                     <div class="table-container" style="position: relative;">
                         <div class="loading-overlay" id="dataLoading" style="display: none;">
                             <div class="loading-spinner"></div>
-                            <div class="loading-text">加载中...</div>
+                            <div class="loading-text" data-i18n="common.loading">加载中...</div>
                         </div>
                         <table class="data-table" id="dataTable">
                             <thead id="dataTableHead"></thead>
@@ -145,28 +156,29 @@
                 <!-- 结构标签页 -->
                 <div class="tab-content" id="schemaTab">
                     <div class="code-block" style="position: relative;">
-                        <button class="btn btn-secondary copy-code-btn" id="copySchemaBtn" style="display: none;" title="复制结构">复制</button>
+                        <button class="btn btn-secondary copy-code-btn" id="copySchemaBtn" style="display: none;" data-i18n="data.copySchema"
+                            data-i18n-title="data.copySchemaTitle" title="复制结构">复制</button>
                         <div class="loading-overlay" id="schemaLoading" style="display: none;">
                             <div class="loading-spinner"></div>
-                            <div class="loading-text">加载中...</div>
+                            <div class="loading-text" data-i18n="common.loading">加载中...</div>
                         </div>
-                        <pre id="schemaContent"><code>请选择一个表查看结构</code></pre>
+                        <pre id="schemaContent"><code data-i18n="db.selectTable">请选择一个表查看结构</code></pre>
                     </div>
                 </div>
 
                 <!-- SQL查询标签页 -->
                 <div class="tab-content" id="queryTab">
                     <div class="query-editor">
-                        <textarea id="sqlQuery" class="sql-input" placeholder="输入SQL查询..."></textarea>
+                        <textarea id="sqlQuery" class="sql-input" data-i18n-placeholder="query.placeholder" placeholder="输入SQL查询..."></textarea>
                         <div class="query-toolbar">
-                            <button class="btn btn-primary" id="executeQuery">执行查询</button>
-                            <button class="btn btn-secondary" id="clearQuery">清空</button>
+                            <button class="btn btn-primary" id="executeQuery" data-i18n="query.execute">执行查询</button>
+                            <button class="btn btn-secondary" id="clearQuery" data-i18n="common.clear">清空</button>
                         </div>
                     </div>
                     <div class="query-results" id="queryResults" style="position: relative;">
                         <div class="loading-overlay" id="queryLoading" style="display: none;">
                             <div class="loading-spinner"></div>
-                            <div class="loading-text">执行中...</div>
+                            <div class="loading-text" data-i18n="common.loading">执行中...</div>
                         </div>
                     </div>
                 </div>
@@ -186,15 +198,15 @@
     <div class="modal" id="deleteConnectionModal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>确认删除连接</h3>
+                <h3 data-i18n="delete.connection">确认删除连接</h3>
                 <button class="modal-close" id="closeDeleteConnectionModal">×</button>
             </div>
             <div class="modal-body">
-                <p>确定要删除这个保存的连接吗？此操作无法撤销。</p>
+                <p data-i18n="delete.connectionMessage">确定要删除这个保存的连接吗？此操作无法撤销。</p>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" id="cancelDeleteConnection">取消</button>
-                <button class="btn btn-danger" id="confirmDeleteConnection">删除</button>
+                <button class="btn btn-secondary" id="cancelDeleteConnection" data-i18n="common.cancel">取消</button>
+                <button class="btn btn-danger" id="confirmDeleteConnection" data-i18n="common.delete">删除</button>
             </div>
         </div>
     </div>
@@ -203,15 +215,15 @@
     <div class="modal" id="clearAllConnectionsModal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>确认清除所有连接</h3>
+                <h3 data-i18n="delete.clearAll">确认清除所有连接</h3>
                 <button class="modal-close" id="closeClearAllConnectionsModal">×</button>
             </div>
             <div class="modal-body">
-                <p>确定要清除所有保存的连接吗？此操作无法撤销。</p>
+                <p data-i18n="delete.clearAllMessage">确定要清除所有保存的连接吗？此操作无法撤销。</p>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" id="cancelClearAllConnections">取消</button>
-                <button class="btn btn-danger" id="confirmClearAllConnections">清除所有</button>
+                <button class="btn btn-secondary" id="cancelClearAllConnections" data-i18n="common.cancel">取消</button>
+                <button class="btn btn-danger" id="confirmClearAllConnections" data-i18n="common.clearAll">清除所有</button>
             </div>
         </div>
     </div>
@@ -220,13 +232,13 @@
     <div class="modal" id="editModal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>编辑行数据</h3>
+                <h3 data-i18n="edit.title">编辑行数据</h3>
                 <button class="modal-close" id="closeEditModal">×</button>
             </div>
             <div class="modal-body" id="editForm"></div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" id="cancelEdit">取消</button>
-                <button class="btn btn-primary" id="saveEdit">保存</button>
+                <button class="btn btn-secondary" id="cancelEdit" data-i18n="common.cancel">取消</button>
+                <button class="btn btn-primary" id="saveEdit" data-i18n="common.save">保存</button>
             </div>
         </div>
     </div>
@@ -235,15 +247,15 @@
     <div class="modal" id="deleteModal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>确认删除</h3>
+                <h3 data-i18n="delete.title">确认删除</h3>
                 <button class="modal-close" id="closeDeleteModal">×</button>
             </div>
             <div class="modal-body">
-                <p>确定要删除这行数据吗？此操作无法撤销。</p>
+                <p data-i18n="delete.message">确定要删除这行数据吗？此操作无法撤销。</p>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" id="cancelDelete">取消</button>
-                <button class="btn btn-danger" id="confirmDelete">删除</button>
+                <button class="btn btn-secondary" id="cancelDelete" data-i18n="common.cancel">取消</button>
+                <button class="btn btn-danger" id="confirmDelete" data-i18n="common.delete">删除</button>
             </div>
         </div>
     </div>
@@ -252,22 +264,22 @@
     <div class="modal" id="newConnectionModal" style="display: none;">
         <div class="modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
             <div class="modal-header">
-                <h3>新增数据库连接</h3>
+                <h3 data-i18n="connection.newTitle">新增数据库连接</h3>
                 <button class="modal-close" id="closeNewConnectionModal">×</button>
             </div>
             <div class="modal-body">
                 <form id="connectionForm" class="connection-form">
                     <div class="form-group">
-                        <label>数据库类型</label>
+                        <label data-i18n="connection.dbType">数据库类型</label>
                         <select id="dbType" class="form-control">
-                            <option value="">加载中...</option>
+                            <option value="" data-i18n="common.loading">加载中...</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>连接方式</label>
+                        <label data-i18n="connection.mode">连接方式</label>
                         <select id="connectionMode" class="form-control">
-                            <option value="form">表单输入</option>
-                            <option value="dsn">DSN连接字符串</option>
+                            <option value="form" data-i18n="connection.modeForm">表单输入</option>
+                            <option value="dsn" data-i18n="connection.modeDSN">DSN连接字符串</option>
                         </select>
                     </div>
                     <div id="dsnGroup" class="form-group" style="display: none;">
@@ -275,13 +287,13 @@
                         <input type="text" id="dsn" class="form-control" placeholder="user:password@tcp(host:port)/">
                     </div>
                     <div id="formGroup" class="form-group">
-                        <label>主机</label>
+                        <label data-i18n="connection.host">主机</label>
                         <input type="text" id="host" class="form-control" placeholder="localhost">
-                        <label>端口</label>
+                        <label data-i18n="connection.port">端口</label>
                         <input type="text" id="port" class="form-control" placeholder="3306">
-                        <label>用户名</label>
+                        <label data-i18n="connection.user">用户名</label>
                         <input type="text" id="user" class="form-control" placeholder="root">
-                        <label>密码</label>
+                        <label data-i18n="connection.password">密码</label>
                         <div style="position: relative;">
                             <input type="password" id="password" class="form-control" placeholder="password"
                                 style="padding-right: 2.5rem;">
@@ -296,29 +308,29 @@
                         style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
                         <label style="display: flex; align-items: center; margin-bottom: 0.5rem;">
                             <input type="checkbox" id="useProxy" style="margin-right: 0.5rem;">
-                            <span>使用代理（SSH等）</span>
+                            <span data-i18n="proxy.use">使用代理（SSH等）</span>
                         </label>
                         <div id="proxyGroup" style="display: none; margin-top: 0.5rem;">
                             <div class="form-group">
-                                <label>代理类型</label>
+                                <label data-i18n="proxy.type">代理类型</label>
                                 <select id="proxyType" class="form-control">
                                     <option value="ssh">SSH</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label>代理主机</label>
+                                <label data-i18n="proxy.host">代理主机</label>
                                 <input type="text" id="proxyHost" class="form-control" placeholder="ssh.example.com">
                             </div>
                             <div class="form-group">
-                                <label>代理端口</label>
+                                <label data-i18n="proxy.port">代理端口</label>
                                 <input type="text" id="proxyPort" class="form-control" placeholder="22">
                             </div>
                             <div class="form-group">
-                                <label>代理用户名</label>
+                                <label data-i18n="proxy.user">代理用户名</label>
                                 <input type="text" id="proxyUser" class="form-control" placeholder="ssh_user">
                             </div>
                             <div class="form-group">
-                                <label>代理密码</label>
+                                <label data-i18n="proxy.password">代理密码</label>
                                 <div style="position: relative;">
                                     <input type="password" id="proxyPassword" class="form-control"
                                         placeholder="ssh_password" style="padding-right: 2.5rem;">
@@ -328,10 +340,10 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label>SSH私钥（可选，base64编码）</label>
+                                <label data-i18n="proxy.key">SSH私钥（可选，base64编码）</label>
                                 <textarea id="proxyKeyData" class="form-control" rows="3"
                                     placeholder="如果使用密钥认证，请粘贴私钥内容（base64编码）"></textarea>
-                                <small style="color: var(--text-secondary); font-size: 0.75rem;">如果提供了私钥，将优先使用私钥认证</small>
+                                <small style="color: var(--text-secondary); font-size: 0.75rem;" data-i18n="proxy.keyHint">如果提供了私钥，将优先使用私钥认证</small>
                             </div>
                             <div class="form-group">
                             </div>
@@ -340,13 +352,13 @@
     
                     <label style="display: flex; align-items: center; margin-top: 0.5rem;">
                         <input type="checkbox" id="rememberConnection" style="margin-right: 0.5rem;">
-                        <span style="font-size: 0.9rem; color: var(--text-secondary);">记住连接</span>
+                        <span style="font-size: 0.9rem; color: var(--text-secondary);" data-i18n="connection.remember">记住连接</span>
                     </label>
                 </form>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" id="cancelNewConnection">取消</button>
-                <button class="btn btn-primary" id="confirmNewConnection">连接</button>
+                <button class="btn btn-secondary" id="cancelNewConnection" data-i18n="common.cancel">取消</button>
+                <button class="btn btn-primary" id="confirmNewConnection" data-i18n="common.connect">连接</button>
             </div>
         </div>
     </div>
