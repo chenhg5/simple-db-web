@@ -752,3 +752,55 @@ body {
 .pagination button.active {
     background: #9f8105;
 }
+
+/* CodeMirror编辑器样式 */
+.CodeMirror {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    height: auto;
+    min-height: 150px;
+}
+
+.CodeMirror-focused {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.2);
+}
+
+/* 查询历史下拉菜单 */
+.query-history-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 0.25rem;
+}
+
+.query-history-header {
+    padding: 0.75rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--surface-light);
+}
+
+.query-history-list {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.query-history-item:hover {
+    background: var(--surface-light) !important;
+}
+
+.query-history-item:last-child {
+    border-bottom: none;
+}

@@ -16,6 +16,17 @@
         })();
     </script>
     <link rel="stylesheet" href="static/style.css">
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/sql-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -170,10 +181,17 @@
                 <!-- SQL查询标签页 -->
                 <div class="tab-content" id="queryTab">
                     <div class="query-editor">
-                        <textarea id="sqlQuery" class="sql-input" data-i18n-placeholder="query.placeholder" placeholder="输入SQL查询..."></textarea>
+                        <div style="position: relative;">
+                            <textarea id="sqlQuery" class="sql-input" data-i18n-placeholder="query.placeholder" placeholder="输入SQL查询..."></textarea>
+                            <div class="query-history-dropdown" id="queryHistoryDropdown" style="display: none;">
+                                <div class="query-history-header" data-i18n="query.history">查询历史</div>
+                                <div class="query-history-list" id="queryHistoryList"></div>
+                            </div>
+                        </div>
                         <div class="query-toolbar">
                             <button class="btn btn-primary" id="executeQuery" data-i18n="query.execute">执行查询</button>
                             <button class="btn btn-secondary" id="clearQuery" data-i18n="common.clear">清空</button>
+                            <button class="btn btn-secondary" id="showHistoryBtn" data-i18n="query.showHistory" title="显示查询历史">历史</button>
                             <button class="btn btn-secondary" id="exportQueryBtn" data-i18n="query.exportExcel" style="display: none;">导出Excel</button>
                         </div>
                     </div>

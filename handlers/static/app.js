@@ -90,6 +90,10 @@ const i18n = {
             'query.unsupported': 'Unsupported SQL type',
             'query.exportExcel': 'Export to Excel',
             'query.exportSuccess': 'Export successful',
+            'query.history': 'Query History',
+            'query.showHistory': 'History',
+            'query.noHistory': 'No query history',
+            'query.historyItem': 'History #{index}',
             
             // 编辑和删除
             'edit.title': 'Edit Row Data',
@@ -218,6 +222,10 @@ const i18n = {
             'query.unsupported': '不支持的SQL类型',
             'query.exportExcel': '导出Excel',
             'query.exportSuccess': '导出成功',
+            'query.history': '查询历史',
+            'query.showHistory': '历史',
+            'query.noHistory': '暂无查询历史',
+            'query.historyItem': '历史 #{index}',
             
             // 编辑和删除
             'edit.title': '编辑行数据',
@@ -346,6 +354,10 @@ const i18n = {
             'query.unsupported': '不支援的SQL類型',
             'query.exportExcel': '匯出Excel',
             'query.exportSuccess': '匯出成功',
+            'query.history': '查詢歷史',
+            'query.showHistory': '歷史',
+            'query.noHistory': '暫無查詢歷史',
+            'query.historyItem': '歷史 #{index}',
             
             // 编辑和删除
             'edit.title': '編輯行資料',
@@ -612,6 +624,12 @@ const sqlQuery = document.getElementById('sqlQuery');
 const executeQuery = document.getElementById('executeQuery');
 const clearQuery = document.getElementById('clearQuery');
 const exportQueryBtn = document.getElementById('exportQueryBtn');
+const showHistoryBtn = document.getElementById('showHistoryBtn');
+const queryHistoryDropdown = document.getElementById('queryHistoryDropdown');
+const queryHistoryList = document.getElementById('queryHistoryList');
+
+// CodeMirror编辑器实例
+let sqlEditor = null;
 const queryResults = document.getElementById('queryResults');
 const editModal = document.getElementById('editModal');
 const editForm = document.getElementById('editForm');
@@ -1192,6 +1210,142 @@ async function restoreConnection() {
     }
 }
 
+// 初始化CodeMirror编辑器
+function initCodeMirror() {
+    if (typeof CodeMirror === 'undefined') {
+        console.warn('CodeMirror未加载，使用普通textarea');
+        return;
+    }
+    
+    // 获取数据库表和列信息用于自动补全
+    let tables = {};
+    if (allTables && allTables.length > 0) {
+        allTables.forEach(table => {
+            tables[table] = currentColumns || [];
+        });
+    }
+    
+    sqlEditor = CodeMirror.fromTextArea(sqlQuery, {
+        mode: 'text/x-sql',
+        theme: 'monokai',
+        lineNumbers: true,
+        lineWrapping: true,
+        indentWithTabs: true,
+        smartIndent: true,
+        matchBrackets: true,
+        autofocus: false,
+        extraKeys: {
+            'Ctrl-Space': 'autocomplete',
+            'Tab': function(cm) {
+                if (cm.somethingSelected()) {
+                    cm.indentSelection('add');
+                } else {
+                    cm.replaceSelection('  ', 'end');
+                }
+            }
+        },
+        hintOptions: {
+            tables: tables,
+            completeSingle: false
+        }
+    });
+    
+    // 设置编辑器样式
+    sqlEditor.setSize('100%', '150px');
+    
+    // 监听编辑器内容变化，更新自动补全的表信息
+    sqlEditor.on('focus', () => {
+        // 当编辑器获得焦点时，更新表信息
+        if (allTables && allTables.length > 0) {
+            let tables = {};
+            allTables.forEach(table => {
+                tables[table] = currentColumns || [];
+            });
+            sqlEditor.setOption('hintOptions', {
+                tables: tables,
+                completeSingle: false
+            });
+        }
+    });
+}
+
+// 查询历史记录管理
+const queryHistory = {
+    // 保存查询历史（最多10条）
+    save(query) {
+        if (!query || !query.trim()) return;
+        
+        let history = this.load();
+        // 移除重复项
+        history = history.filter(item => item !== query.trim());
+        // 添加到开头
+        history.unshift(query.trim());
+        // 只保留最近10条
+        if (history.length > 10) {
+            history = history.slice(0, 10);
+        }
+        localStorage.setItem('sqlQueryHistory', JSON.stringify(history));
+    },
+    
+    // 加载查询历史
+    load() {
+        try {
+            const history = localStorage.getItem('sqlQueryHistory');
+            return history ? JSON.parse(history) : [];
+        } catch (e) {
+            console.error('加载查询历史失败:', e);
+            return [];
+        }
+    },
+    
+    // 清空查询历史
+    clear() {
+        localStorage.removeItem('sqlQueryHistory');
+    },
+    
+    // 显示查询历史
+    display() {
+        const history = this.load();
+        queryHistoryList.innerHTML = '';
+        
+        if (history.length === 0) {
+            queryHistoryList.innerHTML = `<div style="padding: 0.5rem; color: var(--text-secondary); text-align: center; font-size: 0.875rem;" data-i18n="query.noHistory">暂无查询历史</div>`;
+            updateI18nElements();
+            return;
+        }
+        
+        history.forEach((query, index) => {
+            const item = document.createElement('div');
+            item.className = 'query-history-item';
+            item.style.cssText = 'padding: 0.75rem; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;';
+            item.innerHTML = `
+                <div style="font-size: 0.875rem; color: var(--text-primary); margin-bottom: 0.25rem; word-break: break-all;">${escapeHtml(query.substring(0, 100))}${query.length > 100 ? '...' : ''}</div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">${t('query.historyItem', { index: index + 1 })}</div>
+            `;
+            
+            item.addEventListener('click', () => {
+                if (sqlEditor) {
+                    sqlEditor.setValue(query);
+                    sqlEditor.focus();
+                } else {
+                    sqlQuery.value = query;
+                }
+                queryHistoryDropdown.style.display = 'none';
+            });
+            
+            item.addEventListener('mouseenter', () => {
+                item.style.background = 'var(--surface-light)';
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                item.style.background = 'transparent';
+            });
+            
+            queryHistoryList.appendChild(item);
+        });
+    }
+};
+
 // 页面加载完成后初始化 i18n 和恢复连接
 document.addEventListener('DOMContentLoaded', () => {
     // 初始化 i18n（从 localStorage 读取或使用默认值）
@@ -1205,6 +1359,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (langSelect) {
         langSelect.value = i18n.currentLang;
     }
+    
+    // 初始化CodeMirror编辑器
+    initCodeMirror();
     
     // 恢复连接
     restoreConnection();
@@ -1710,6 +1867,18 @@ function displayTables(tables) {
     allTables = tables;
     filterTables();
     tablesPanel.style.display = 'block';
+    
+    // 更新CodeMirror编辑器的自动补全表信息
+    if (sqlEditor && allTables && allTables.length > 0) {
+        let tablesForHint = {};
+        allTables.forEach(table => {
+            tablesForHint[table] = currentColumns || [];
+        });
+        sqlEditor.setOption('hintOptions', {
+            tables: tablesForHint,
+            completeSingle: false
+        });
+    }
 }
 
 // 筛选表列表
@@ -2136,7 +2305,7 @@ function switchTab(tabName) {
 
 // 执行SQL查询
 executeQuery.addEventListener('click', async () => {
-    const query = sqlQuery.value.trim();
+    const query = sqlEditor ? sqlEditor.getValue().trim() : sqlQuery.value.trim();
     if (!query) {
             showNotification(t('query.empty'), 'error');
         return;
@@ -2162,6 +2331,9 @@ executeQuery.addEventListener('click', async () => {
         }
         
         if (response.ok && data.success) {
+            // 保存查询历史
+            queryHistory.save(query);
+            
             if (data.data) {
                 // 查询结果
                 displayQueryResults(data.data);
@@ -2220,11 +2392,37 @@ function displayQueryResults(rows) {
 
 // 清空查询
 clearQuery.addEventListener('click', () => {
+    if (sqlEditor) {
+        sqlEditor.setValue('');
+        sqlEditor.focus();
+    } else {
     sqlQuery.value = '';
+    }
     queryResults.innerHTML = '';
     // 隐藏导出按钮
     if (exportQueryBtn) {
         exportQueryBtn.style.display = 'none';
+    }
+});
+
+// 显示/隐藏查询历史
+if (showHistoryBtn) {
+    showHistoryBtn.addEventListener('click', () => {
+        if (queryHistoryDropdown.style.display === 'none' || !queryHistoryDropdown.style.display) {
+            queryHistory.display();
+            queryHistoryDropdown.style.display = 'block';
+        } else {
+            queryHistoryDropdown.style.display = 'none';
+        }
+    });
+}
+
+// 点击外部关闭历史下拉菜单
+document.addEventListener('click', (e) => {
+    if (queryHistoryDropdown && showHistoryBtn && 
+        !queryHistoryDropdown.contains(e.target) && 
+        !showHistoryBtn.contains(e.target)) {
+        queryHistoryDropdown.style.display = 'none';
     }
 });
 
@@ -2285,7 +2483,7 @@ if (exportDataBtn) {
 // 导出查询结果为Excel
 if (exportQueryBtn) {
     exportQueryBtn.addEventListener('click', async () => {
-        const query = sqlQuery.value.trim();
+        const query = sqlEditor ? sqlEditor.getValue().trim() : sqlQuery.value.trim();
         if (!query) {
             showNotification(t('query.empty'), 'error');
             return;
