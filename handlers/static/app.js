@@ -135,6 +135,41 @@ const i18n = {
             'error.exportFailed': 'Export failed',
             'error.noTable': 'No table selected',
             'error.timeout': 'Request timeout, please try again later',
+            // API错误代码翻译
+            'error.methodNotAllowed': 'Method not allowed',
+            'error.missingConnectionID': 'Missing connection ID',
+            'error.missingTableName': 'Missing table name parameter',
+            'error.missingDatabaseName': 'Database name cannot be empty',
+            'error.emptySQLQuery': 'SQL query cannot be empty',
+            'error.unsupportedSQLType': 'Unsupported SQL type',
+            'error.unsupportedDatabaseType': 'Unsupported database type',
+            'error.unsupportedProxyType': 'Unsupported proxy type',
+            'error.parseRequestFailed': 'Failed to parse request',
+            'error.generateConnectionIDFailed': 'Failed to generate connection ID',
+            'error.buildProxyConfigFailed': 'Failed to build proxy configuration',
+            'error.establishProxyFailed': 'Failed to establish proxy connection',
+            'error.connectionFailed': 'Connection failed',
+            'error.getTablesFailed': 'Failed to get table list',
+            'error.getTableSchemaFailed': 'Failed to get table schema',
+            'error.getTableColumnsFailed': 'Failed to get column information',
+            'error.getTableDataFailed': 'Failed to get table data',
+            'error.getPageIDFailed': 'Failed to get page ID',
+            'error.sqlValidationFailed': 'SQL validation failed',
+            'error.executeQueryFailed': 'Failed to execute query',
+            'error.executeUpdateFailed': 'Failed to execute update',
+            'error.executeDeleteFailed': 'Failed to execute delete',
+            'error.executeInsertFailed': 'Failed to execute insert',
+            'error.updateFailed': 'Update failed',
+            'error.deleteFailed': 'Delete failed',
+            'error.getDatabasesFailed': 'Failed to get database list',
+            'error.switchDatabaseFailed': 'Failed to switch database',
+            'error.noSinglePrimaryKey': 'Table does not have a single primary key, ID-based pagination is not supported',
+            'error.primaryKeyNotInteger': 'Primary key is not an integer type, ID-based pagination is not supported',
+            'error.selectDatabaseFirst': 'Please select database first',
+            'error.tableNameEmpty': 'Table name cannot be empty',
+            'error.clickHouseNoUpdate': 'ClickHouse does not support UPDATE operations',
+            'error.clickHouseNoDelete': 'ClickHouse does not support DELETE operations',
+            'error.connectionNotExists': 'Connection does not exist or has been disconnected',
             
             // 语言切换
             'lang.en': 'English',
@@ -281,6 +316,41 @@ const i18n = {
             'error.exportFailed': '导出失败',
             'error.noTable': '未选择表',
             'error.timeout': '请求超时，请稍后重试',
+            // API错误代码翻译
+            'error.methodNotAllowed': '方法不允许',
+            'error.missingConnectionID': '缺少连接ID',
+            'error.missingTableName': '缺少表名参数',
+            'error.missingDatabaseName': '数据库名不能为空',
+            'error.emptySQLQuery': 'SQL查询不能为空',
+            'error.unsupportedSQLType': '不支持的SQL类型',
+            'error.unsupportedDatabaseType': '不支持的数据库类型',
+            'error.unsupportedProxyType': '不支持的代理类型',
+            'error.parseRequestFailed': '解析请求失败',
+            'error.generateConnectionIDFailed': '生成连接ID失败',
+            'error.buildProxyConfigFailed': '构建代理配置失败',
+            'error.establishProxyFailed': '建立代理连接失败',
+            'error.connectionFailed': '连接失败',
+            'error.getTablesFailed': '获取表列表失败',
+            'error.getTableSchemaFailed': '获取表结构失败',
+            'error.getTableColumnsFailed': '获取列信息失败',
+            'error.getTableDataFailed': '获取数据失败',
+            'error.getPageIDFailed': '获取页码ID失败',
+            'error.sqlValidationFailed': 'SQL校验失败',
+            'error.executeQueryFailed': '执行查询失败',
+            'error.executeUpdateFailed': '执行更新失败',
+            'error.executeDeleteFailed': '执行删除失败',
+            'error.executeInsertFailed': '执行插入失败',
+            'error.updateFailed': '更新失败',
+            'error.deleteFailed': '删除失败',
+            'error.getDatabasesFailed': '获取数据库列表失败',
+            'error.switchDatabaseFailed': '切换数据库失败',
+            'error.noSinglePrimaryKey': '表没有单个主键，不支持基于ID的分页',
+            'error.primaryKeyNotInteger': '主键不是整数类型，不支持基于ID的分页',
+            'error.selectDatabaseFirst': '请先选择数据库',
+            'error.tableNameEmpty': '表名不能为空',
+            'error.clickHouseNoUpdate': 'ClickHouse 不支持 UPDATE 操作',
+            'error.clickHouseNoDelete': 'ClickHouse 不支持 DELETE 操作',
+            'error.connectionNotExists': '连接不存在或已断开',
             
             // 语言切换
             'lang.en': 'English',
@@ -427,6 +497,41 @@ const i18n = {
             'error.exportFailed': '匯出失敗',
             'error.noTable': '未選擇表',
             'error.timeout': '請求超時，請稍後重試',
+            // API错误代码翻译
+            'error.methodNotAllowed': '方法不允許',
+            'error.missingConnectionID': '缺少連接ID',
+            'error.missingTableName': '缺少表名參數',
+            'error.missingDatabaseName': '資料庫名不能為空',
+            'error.emptySQLQuery': 'SQL查詢不能為空',
+            'error.unsupportedSQLType': '不支援的SQL類型',
+            'error.unsupportedDatabaseType': '不支援的資料庫類型',
+            'error.unsupportedProxyType': '不支援的代理類型',
+            'error.parseRequestFailed': '解析請求失敗',
+            'error.generateConnectionIDFailed': '生成連接ID失敗',
+            'error.buildProxyConfigFailed': '構建代理配置失敗',
+            'error.establishProxyFailed': '建立代理連接失敗',
+            'error.connectionFailed': '連接失敗',
+            'error.getTablesFailed': '取得表列表失敗',
+            'error.getTableSchemaFailed': '取得表結構失敗',
+            'error.getTableColumnsFailed': '取得欄位資訊失敗',
+            'error.getTableDataFailed': '取得資料失敗',
+            'error.getPageIDFailed': '取得頁碼ID失敗',
+            'error.sqlValidationFailed': 'SQL校驗失敗',
+            'error.executeQueryFailed': '執行查詢失敗',
+            'error.executeUpdateFailed': '執行更新失敗',
+            'error.executeDeleteFailed': '執行刪除失敗',
+            'error.executeInsertFailed': '執行插入失敗',
+            'error.updateFailed': '更新失敗',
+            'error.deleteFailed': '刪除失敗',
+            'error.getDatabasesFailed': '取得資料庫列表失敗',
+            'error.switchDatabaseFailed': '切換資料庫失敗',
+            'error.noSinglePrimaryKey': '表沒有單個主鍵，不支援基於ID的分頁',
+            'error.primaryKeyNotInteger': '主鍵不是整數類型，不支援基於ID的分頁',
+            'error.selectDatabaseFirst': '請先選擇資料庫',
+            'error.tableNameEmpty': '表名不能為空',
+            'error.clickHouseNoUpdate': 'ClickHouse 不支援 UPDATE 操作',
+            'error.clickHouseNoDelete': 'ClickHouse 不支援 DELETE 操作',
+            'error.connectionNotExists': '連接不存在或已斷開',
             
             // 语言切换
             'lang.en': 'English',
@@ -484,9 +589,30 @@ function t(key, params = {}) {
     return i18n.t(key, params);
 }
 
+// 处理API错误响应，根据errorCode进行翻译
+function translateApiError(data) {
+    // 如果响应包含errorCode，优先使用errorCode进行翻译
+    if (data && data.errorCode) {
+        const translated = t(data.errorCode);
+        // 如果翻译成功（返回的不是key本身），使用翻译后的文本
+        if (translated !== data.errorCode) {
+            // 如果有参数，尝试格式化消息
+            if (data.params && data.params.length > 0) {
+                // 对于有参数的错误，可以显示翻译后的消息和参数
+                const paramStr = data.params.map(p => String(p)).join(', ');
+                return `${translated}${paramStr ? ': ' + paramStr : ''}`;
+            }
+            return translated;
+        }
+    }
+    // 如果没有errorCode或翻译失败，使用message字段（向后兼容）
+    return data && data.message ? data.message : '';
+}
+
 // 导出到全局
 window.i18n = i18n;
 window.t = t;
+window.translateApiError = translateApiError;
 
 // ==================== 全局配置和扩展机制 ====================
 // 全局配置对象，允许外部项目自定义行为
@@ -1197,7 +1323,7 @@ async function connectWithSavedConnection(savedConn) {
             }
             showNotification(t('connection.success'), 'success');
         } else {
-            showNotification(data.message || t('connection.failed'), 'error');
+            showNotification(translateApiError(data) || t('connection.failed'), 'error');
         }
     } catch (error) {
         showNotification('连接失败: ' + error.message, 'error');
@@ -1869,7 +1995,7 @@ async function handleConnect() {
             }
             showNotification('连接成功', 'success');
         } else {
-            showNotification(data.message || '连接失败', 'error');
+            showNotification(translateApiError(data) || t('connection.failed'), 'error');
         }
     } catch (error) {
         showNotification('连接失败: ' + error.message, 'error');
@@ -2016,7 +2142,7 @@ async function disconnectConnection(targetConnectionId) {
             updateActiveConnectionsList();
             showNotification(t('connection.disconnected'), 'success');
         } else {
-            showNotification(data.message || t('connection.failed'), 'error');
+            showNotification(translateApiError(data) || t('connection.failed'), 'error');
         }
     } catch (error) {
         showNotification(t('connection.failed') + ': ' + error.message, 'error');
@@ -2159,7 +2285,7 @@ async function switchDatabase(databaseName) {
                 await loadTables();
             }
         } else {
-            showNotification(data.message || t('error.switchDatabase'), 'error');
+            showNotification(translateApiError(data) || t('error.switchDatabase'), 'error');
         }
     } catch (error) {
         showNotification(t('error.switchDatabase') + ': ' + error.message, 'error');
@@ -2240,7 +2366,7 @@ async function loadTables() {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            const errorMessage = data.message || t('error.loadTables');
+            const errorMessage = translateApiError(data) || t('error.loadTables');
             showNotification(errorMessage, 'error');
             hideLoading(tablesLoading);
             setButtonLoading(refreshTables, false);
@@ -2309,7 +2435,7 @@ async function loadTableData() {
         const columnsData = await columnsResponse.json();
         
         if (!columnsResponse.ok || !columnsData.success) {
-            showNotification(columnsData.message || t('error.loadColumns'), 'error');
+            showNotification(translateApiError(columnsData) || t('error.loadColumns'), 'error');
             hideLoading(dataLoading);
             setButtonLoading(refreshData, false);
             return;
@@ -2344,7 +2470,7 @@ async function loadTableData() {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            const errorMessage = data.message || t('error.loadData');
+            const errorMessage = translateApiError(data) || t('error.loadData');
             showNotification(errorMessage, 'error');
             // 即使获取数据失败，如果有列信息，也要显示表头
             if (currentColumns.length > 0) {
@@ -2741,7 +2867,7 @@ async function loadTableSchema() {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            const errorMessage = data.message || t('error.loadSchema');
+            const errorMessage = translateApiError(data) || t('error.loadSchema');
             showNotification(errorMessage, 'error');
             hideLoading(schemaLoading);
             copySchemaBtn.style.display = 'none';
@@ -2839,7 +2965,7 @@ executeQuery.addEventListener('click', async () => {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            queryResults.innerHTML = `<div class="query-message error">${data.message || t('query.failed')}</div>`;
+            queryResults.innerHTML = `<div class="query-message error">${translateApiError(data) || t('query.failed')}</div>`;
             // 隐藏导出按钮（查询失败）
             if (exportQueryBtn) {
                 exportQueryBtn.style.display = 'none';
@@ -3149,7 +3275,7 @@ if (exportDataBtn) {
             
             if (!response.ok) {
                 const errorData = await response.json();
-                showNotification(errorData.message || t('error.exportFailed'), 'error');
+                showNotification(translateApiError(errorData) || t('error.exportFailed'), 'error');
                 return;
             }
             
@@ -3213,7 +3339,7 @@ if (exportQueryBtn) {
             
             if (!response.ok) {
                 const errorData = await response.json();
-                showNotification(errorData.message || t('error.exportFailed'), 'error');
+                showNotification(translateApiError(errorData) || t('error.exportFailed'), 'error');
                 return;
             }
             
@@ -3317,7 +3443,7 @@ saveEdit.addEventListener('click', async () => {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            showNotification(data.message || t('edit.failed'), 'error');
+            showNotification(translateApiError(data) || t('edit.failed'), 'error');
             return;
         }
         
@@ -3371,7 +3497,7 @@ confirmDelete.addEventListener('click', async () => {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-            showNotification(data.message || t('delete.failed'), 'error');
+            showNotification(translateApiError(data) || t('delete.failed'), 'error');
             return;
         }
         

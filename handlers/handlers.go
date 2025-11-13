@@ -362,14 +362,71 @@ func getConnectionID(r *http.Request) string {
 	return r.URL.Query().Get("connectionId")
 }
 
+// 错误代码常量
+const (
+	ErrCodeMethodNotAllowed           = "error.methodNotAllowed"
+	ErrCodeMissingConnectionID        = "error.missingConnectionID"
+	ErrCodeMissingTableName           = "error.missingTableName"
+	ErrCodeMissingDatabaseName        = "error.missingDatabaseName"
+	ErrCodeEmptySQLQuery              = "error.emptySQLQuery"
+	ErrCodeUnsupportedSQLType         = "error.unsupportedSQLType"
+	ErrCodeUnsupportedDatabaseType    = "error.unsupportedDatabaseType"
+	ErrCodeUnsupportedProxyType       = "error.unsupportedProxyType"
+	ErrCodeParseRequestFailed         = "error.parseRequestFailed"
+	ErrCodeGenerateConnectionIDFailed = "error.generateConnectionIDFailed"
+	ErrCodeBuildProxyConfigFailed     = "error.buildProxyConfigFailed"
+	ErrCodeEstablishProxyFailed       = "error.establishProxyFailed"
+	ErrCodeConnectionFailed           = "error.connectionFailed"
+	ErrCodeGetTablesFailed            = "error.getTablesFailed"
+	ErrCodeGetTableSchemaFailed       = "error.getTableSchemaFailed"
+	ErrCodeGetTableColumnsFailed      = "error.getTableColumnsFailed"
+	ErrCodeGetTableDataFailed         = "error.getTableDataFailed"
+	ErrCodeGetPageIDFailed            = "error.getPageIDFailed"
+	ErrCodeSQLValidationFailed        = "error.sqlValidationFailed"
+	ErrCodeExecuteQueryFailed         = "error.executeQueryFailed"
+	ErrCodeExecuteUpdateFailed        = "error.executeUpdateFailed"
+	ErrCodeExecuteDeleteFailed        = "error.executeDeleteFailed"
+	ErrCodeExecuteInsertFailed        = "error.executeInsertFailed"
+	ErrCodeUpdateFailed               = "error.updateFailed"
+	ErrCodeDeleteFailed               = "error.deleteFailed"
+	ErrCodeGetDatabasesFailed         = "error.getDatabasesFailed"
+	ErrCodeSwitchDatabaseFailed       = "error.switchDatabaseFailed"
+	ErrCodeNoSinglePrimaryKey         = "error.noSinglePrimaryKey"
+	ErrCodePrimaryKeyNotInteger       = "error.primaryKeyNotInteger"
+	ErrCodeSelectDatabaseFirst        = "error.selectDatabaseFirst"
+	ErrCodeTableNameEmpty             = "error.tableNameEmpty"
+	ErrCodeClickHouseNoUpdate         = "error.clickHouseNoUpdate"
+	ErrCodeClickHouseNoDelete         = "error.clickHouseNoDelete"
+	ErrCodeConnectionNotExists        = "error.connectionNotExists"
+)
+
 // writeJSONError 写入JSON格式的错误响应
-func writeJSONError(w http.ResponseWriter, statusCode int, message string) {
+// 支持错误代码和参数化消息
+func writeJSONError(w http.ResponseWriter, statusCode int, errorCode string, params ...interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": false,
-		"message": message,
-	})
+
+	response := map[string]interface{}{
+		"success":   false,
+		"errorCode": errorCode,
+	}
+
+	// 如果有参数，构建参数化消息（用于向后兼容）
+	if len(params) > 0 {
+		// 构建参数化消息，用于日志或调试
+		message := errorCode
+		if len(params) == 1 {
+			message = fmt.Sprintf("%s: %v", errorCode, params[0])
+		} else if len(params) > 1 {
+			message = fmt.Sprintf("%s: %v", errorCode, params)
+		}
+		response["message"] = message
+		response["params"] = params
+	} else {
+		response["message"] = errorCode
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
 // createDatabaseFromSessionData 根据SessionData重建数据库连接
@@ -616,20 +673,20 @@ func (s *Server) Home(w http.ResponseWriter, r *http.Request) {
 // Connect 连接数据库
 func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "方法不允许")
+		writeJSONError(w, http.StatusMethodNotAllowed, ErrCodeMethodNotAllowed)
 		return
 	}
 
 	var info database.ConnectionInfo
 	if err := json.NewDecoder(r.Body).Decode(&info); err != nil {
-		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("解析请求失败: %v", err))
+		writeJSONError(w, http.StatusBadRequest, ErrCodeParseRequestFailed, err)
 		return
 	}
 
 	// 生成连接ID
 	connectionID, err := generateConnectionID()
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("生成连接ID失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGenerateConnectionIDFailed, err)
 		return
 	}
 
@@ -658,7 +715,7 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 		case "postgres", "postgresql":
 			db = database.NewPostgreSQL()
 		default:
-			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("不支持的数据库类型: %s", info.Type))
+			writeJSONError(w, http.StatusBadRequest, ErrCodeUnsupportedDatabaseType, info.Type)
 			return
 		}
 	}
@@ -672,21 +729,21 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 		s.customProxyMutex.RUnlock()
 
 		if !exists {
-			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("不支持的代理类型: %s", info.Proxy.Type))
+			writeJSONError(w, http.StatusBadRequest, ErrCodeUnsupportedProxyType, info.Proxy.Type)
 			return
 		}
 
 		// 构建代理配置JSON
 		proxyConfigJSON, err := json.Marshal(info.Proxy)
 		if err != nil {
-			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("构建代理配置失败: %v", err))
+			writeJSONError(w, http.StatusBadRequest, ErrCodeBuildProxyConfigFailed, err)
 			return
 		}
 
 		// 创建代理
 		proxy, err = proxyFactory(string(proxyConfigJSON))
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("建立代理连接失败: %v", err))
+			writeJSONError(w, http.StatusInternalServerError, ErrCodeEstablishProxyFailed, err)
 			return
 		}
 		defer func() {
@@ -721,7 +778,7 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 		if proxy != nil {
 			proxy.Close()
 		}
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("连接失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeConnectionFailed, err)
 		return
 	}
 
@@ -776,19 +833,19 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetTables(w http.ResponseWriter, r *http.Request) {
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
 	tables, err := session.db.GetTables()
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取表列表失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetTablesFailed, err)
 		return
 	}
 
@@ -802,19 +859,19 @@ func (s *Server) GetTables(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetTableSchema(w http.ResponseWriter, r *http.Request) {
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
 	tableName := r.URL.Query().Get("table")
 	if tableName == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少表名参数")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingTableName)
 		return
 	}
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
@@ -823,7 +880,7 @@ func (s *Server) GetTableSchema(w http.ResponseWriter, r *http.Request) {
 	})
 	schema, err := session.db.GetTableSchema(tableName)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取表结构失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetTableSchemaFailed, err)
 		return
 	}
 
@@ -837,31 +894,31 @@ func (s *Server) GetTableSchema(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetTableColumns(w http.ResponseWriter, r *http.Request) {
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
 	tableName := r.URL.Query().Get("table")
 	if tableName == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少表名参数")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingTableName)
 		return
 	}
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
 	// 确保数据库已选择（从持久化存储获取的会话应该已经切换了数据库，但为了安全再次检查）
 	if session.currentDatabase == "" {
-		writeJSONError(w, http.StatusBadRequest, "请先选择数据库")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeSelectDatabaseFirst)
 		return
 	}
 
 	columns, err := session.db.GetTableColumns(tableName)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取列信息失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetTableColumnsFailed, err)
 		return
 	}
 
@@ -875,13 +932,13 @@ func (s *Server) GetTableColumns(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
 	tableName := r.URL.Query().Get("table")
 	if tableName == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少表名参数")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingTableName)
 		return
 	}
 
@@ -916,7 +973,7 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
@@ -927,7 +984,7 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 	// 先获取列信息，检查是否有单个整数主键
 	columns, err := session.db.GetTableColumns(tableName)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取列信息失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetTableColumnsFailed, err)
 		return
 	}
 
@@ -974,7 +1031,7 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取数据失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetTableDataFailed, err)
 		return
 	}
 
@@ -1037,13 +1094,13 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetPageId(w http.ResponseWriter, r *http.Request) {
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
 	tableName := r.URL.Query().Get("table")
 	if tableName == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少表名参数")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingTableName)
 		return
 	}
 
@@ -1059,14 +1116,14 @@ func (s *Server) GetPageId(w http.ResponseWriter, r *http.Request) {
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
 	// 获取列信息，检查是否有单个整数主键
 	columns, err := session.db.GetTableColumns(tableName)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取列信息失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetTableColumnsFailed, err)
 		return
 	}
 
@@ -1082,7 +1139,7 @@ func (s *Server) GetPageId(w http.ResponseWriter, r *http.Request) {
 
 	// 判断是否可以使用基于ID的分页
 	if primaryKeyCount != 1 || primaryKeyColumn == nil {
-		writeJSONError(w, http.StatusBadRequest, "表没有单个主键，不支持基于ID的分页")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeNoSinglePrimaryKey)
 		return
 	}
 
@@ -1091,14 +1148,14 @@ func (s *Server) GetPageId(w http.ResponseWriter, r *http.Request) {
 	if !strings.Contains(typeLower, "int") && !strings.Contains(typeLower, "serial") &&
 		!strings.Contains(typeLower, "bigint") && !strings.Contains(typeLower, "smallint") &&
 		!strings.Contains(typeLower, "tinyint") && !strings.Contains(typeLower, "mediumint") {
-		writeJSONError(w, http.StatusBadRequest, "主键不是整数类型，不支持基于ID的分页")
+		writeJSONError(w, http.StatusBadRequest, ErrCodePrimaryKeyNotInteger)
 		return
 	}
 
 	// 获取指定页码的ID
 	pageId, err := session.db.GetPageIdByPageNumber(tableName, primaryKeyColumn.Name, page, pageSize)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取页码ID失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetPageIDFailed, err)
 		return
 	}
 
@@ -1112,13 +1169,13 @@ func (s *Server) GetPageId(w http.ResponseWriter, r *http.Request) {
 // ExecuteQuery 执行SQL查询
 func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "方法不允许")
+		writeJSONError(w, http.StatusMethodNotAllowed, ErrCodeMethodNotAllowed)
 		return
 	}
 
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
@@ -1126,18 +1183,18 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 		Query string `json:"query"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("解析请求失败: %v", err))
+		writeJSONError(w, http.StatusBadRequest, ErrCodeParseRequestFailed, err)
 		return
 	}
 
 	if req.Query == "" {
-		writeJSONError(w, http.StatusBadRequest, "SQL查询不能为空")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeEmptySQLQuery)
 		return
 	}
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
@@ -1150,7 +1207,7 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 
 	// 执行SQL校验
 	if err := s.validateSQL(req.Query, queryType); err != nil {
-		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("SQL校验失败: %v", err))
+		writeJSONError(w, http.StatusBadRequest, ErrCodeSQLValidationFailed, err)
 		return
 	}
 
@@ -1159,7 +1216,7 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 	if queryType == "SELECT" || queryUpperPrefix == "SELECT" || queryUpperPrefix == "select" {
 		results, err := session.db.ExecuteQuery(req.Query)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("执行查询失败: %v", err))
+			writeJSONError(w, http.StatusInternalServerError, ErrCodeExecuteQueryFailed, err)
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -1169,7 +1226,7 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 	} else if queryType == "UPDATE" || queryUpperPrefix == "UPDATE" || queryUpperPrefix == "update" {
 		affected, err := session.db.ExecuteUpdate(req.Query)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("执行更新失败: %v", err))
+			writeJSONError(w, http.StatusInternalServerError, ErrCodeExecuteUpdateFailed, err)
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -1179,7 +1236,7 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 	} else if queryType == "DELETE" || queryUpperPrefix == "DELETE" || queryUpperPrefix == "delete" {
 		affected, err := session.db.ExecuteDelete(req.Query)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("执行删除失败: %v", err))
+			writeJSONError(w, http.StatusInternalServerError, ErrCodeExecuteDeleteFailed, err)
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -1189,7 +1246,7 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 	} else if queryType == "INSERT" || queryUpperPrefix == "INSERT" || queryUpperPrefix == "insert" {
 		affected, err := session.db.ExecuteInsert(req.Query)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("执行插入失败: %v", err))
+			writeJSONError(w, http.StatusInternalServerError, ErrCodeExecuteInsertFailed, err)
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -1197,32 +1254,32 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 			"affected": affected,
 		})
 	} else {
-		writeJSONError(w, http.StatusBadRequest, "不支持的SQL类型")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeUnsupportedSQLType)
 	}
 }
 
 // UpdateRow 更新行数据
 func (s *Server) UpdateRow(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "方法不允许")
+		writeJSONError(w, http.StatusMethodNotAllowed, ErrCodeMethodNotAllowed)
 		return
 	}
 
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
 	// ClickHouse 不支持 UPDATE 操作
 	if session.dbType == "clickhouse" {
-		writeJSONError(w, http.StatusBadRequest, "ClickHouse 不支持 UPDATE 操作")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeClickHouseNoUpdate)
 		return
 	}
 
@@ -1233,12 +1290,12 @@ func (s *Server) UpdateRow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("解析请求失败: %v", err))
+		writeJSONError(w, http.StatusBadRequest, ErrCodeParseRequestFailed, err)
 		return
 	}
 
 	if req.Table == "" {
-		writeJSONError(w, http.StatusBadRequest, "表名不能为空")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeTableNameEmpty)
 		return
 	}
 
@@ -1279,7 +1336,7 @@ func (s *Server) UpdateRow(w http.ResponseWriter, r *http.Request) {
 
 	affected, err := session.db.ExecuteUpdate(query)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("更新失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeUpdateFailed, err)
 		return
 	}
 
@@ -1292,25 +1349,25 @@ func (s *Server) UpdateRow(w http.ResponseWriter, r *http.Request) {
 // DeleteRow 删除行数据
 func (s *Server) DeleteRow(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "方法不允许")
+		writeJSONError(w, http.StatusMethodNotAllowed, ErrCodeMethodNotAllowed)
 		return
 	}
 
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
 	// ClickHouse 不支持 DELETE 操作
 	if session.dbType == "clickhouse" {
-		writeJSONError(w, http.StatusBadRequest, "ClickHouse 不支持 DELETE 操作")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeClickHouseNoDelete)
 		return
 	}
 
@@ -1320,12 +1377,12 @@ func (s *Server) DeleteRow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("解析请求失败: %v", err))
+		writeJSONError(w, http.StatusBadRequest, ErrCodeParseRequestFailed, err)
 		return
 	}
 
 	if req.Table == "" {
-		writeJSONError(w, http.StatusBadRequest, "表名不能为空")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeTableNameEmpty)
 		return
 	}
 
@@ -1349,7 +1406,7 @@ func (s *Server) DeleteRow(w http.ResponseWriter, r *http.Request) {
 
 	affected, err := session.db.ExecuteDelete(query)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("删除失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeDeleteFailed, err)
 		return
 	}
 
@@ -1363,19 +1420,19 @@ func (s *Server) DeleteRow(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetDatabases(w http.ResponseWriter, r *http.Request) {
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
 	databases, err := session.db.GetDatabases()
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取数据库列表失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetDatabasesFailed, err)
 		return
 	}
 
@@ -1388,13 +1445,13 @@ func (s *Server) GetDatabases(w http.ResponseWriter, r *http.Request) {
 // SwitchDatabase 切换数据库
 func (s *Server) SwitchDatabase(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "方法不允许")
+		writeJSONError(w, http.StatusMethodNotAllowed, ErrCodeMethodNotAllowed)
 		return
 	}
 
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
@@ -1402,23 +1459,23 @@ func (s *Server) SwitchDatabase(w http.ResponseWriter, r *http.Request) {
 		Database string `json:"database"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("解析请求失败: %v", err))
+		writeJSONError(w, http.StatusBadRequest, ErrCodeParseRequestFailed, err)
 		return
 	}
 
 	if req.Database == "" {
-		writeJSONError(w, http.StatusBadRequest, "数据库名不能为空")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingDatabaseName)
 		return
 	}
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
 	if err := session.db.SwitchDatabase(req.Database); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("切换数据库失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeSwitchDatabaseFailed, err)
 		return
 	}
 
@@ -1430,7 +1487,7 @@ func (s *Server) SwitchDatabase(w http.ResponseWriter, r *http.Request) {
 	// 切换数据库后重新加载表列表
 	tables, err := session.db.GetTables()
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取表列表失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetTablesFailed, err)
 		return
 	}
 
@@ -1444,13 +1501,13 @@ func (s *Server) SwitchDatabase(w http.ResponseWriter, r *http.Request) {
 // Disconnect 断开连接
 func (s *Server) Disconnect(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "方法不允许")
+		writeJSONError(w, http.StatusMethodNotAllowed, ErrCodeMethodNotAllowed)
 		return
 	}
 
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
