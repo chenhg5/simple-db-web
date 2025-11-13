@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,6 +60,23 @@ type SessionStorage interface {
 	// Close 关闭存储连接（如果需要）
 	Close() error
 }
+
+// Proxy 代理接口
+// 允许外部项目实现自定义的代理协议（如SSH、SOCKS5等）
+type Proxy interface {
+	// Dial 建立代理连接
+	// network: 网络类型，如 "tcp"
+	// address: 目标地址，格式如 "host:port"
+	// 返回代理后的连接
+	Dial(network, address string) (net.Conn, error)
+
+	// Close 关闭代理连接
+	Close() error
+}
+
+// ProxyFactory 代理工厂函数类型
+// config: 代理配置的JSON字符串
+type ProxyFactory func(config string) (Proxy, error)
 
 // DatabaseFactory 数据库工厂函数类型
 type DatabaseFactory func() database.Database
@@ -128,6 +146,8 @@ type Server struct {
 	sessionsMutex     sync.RWMutex
 	customDatabases   map[string]DatabaseFactory // 自定义数据库类型
 	customDbMutex     sync.RWMutex
+	customProxies     map[string]ProxyFactory // 自定义代理类型
+	customProxyMutex  sync.RWMutex
 	builtinTypes      map[string]string // 内置数据库类型及其显示名称
 	customScript      string            // 自定义JavaScript脚本，会在页面加载后执行
 	customScriptMutex sync.RWMutex      // 保护customScript的读写锁
@@ -157,13 +177,19 @@ func NewServer() (*Server, error) {
 		"oceandb":    "OceanDB",
 	}
 
-	return &Server{
+	server := &Server{
 		templates:       tmpl,
 		sessionStorage:  NewMemorySessionStorage(), // 默认使用内存存储
 		sessions:        make(map[string]*ConnectionSession),
 		customDatabases: make(map[string]DatabaseFactory),
+		customProxies:   make(map[string]ProxyFactory),
 		builtinTypes:    builtinTypes,
-	}, nil
+	}
+
+	// 注册默认的SSH代理
+	server.AddProxy("ssh", NewSSHProxy)
+
+	return server, nil
 }
 
 // SetSessionStorage 设置自定义会话存储
@@ -189,6 +215,15 @@ func (s *Server) AddDatabase(name string, factory DatabaseFactory) {
 	s.customDbMutex.Lock()
 	defer s.customDbMutex.Unlock()
 	s.customDatabases[name] = factory
+}
+
+// AddProxy 添加自定义代理类型
+// name: 代理类型标识（如 "socks5"）
+// factory: 创建代理实例的工厂函数
+func (s *Server) AddProxy(name string, factory ProxyFactory) {
+	s.customProxyMutex.Lock()
+	defer s.customProxyMutex.Unlock()
+	s.customProxies[name] = factory
 }
 
 // GetDatabaseTypes 获取所有可用的数据库类型列表
@@ -292,8 +327,40 @@ func (s *Server) createDatabaseFromSessionData(data *SessionData) (database.Data
 		}
 	}
 
-	// 重建连接
+	// 如果有代理配置，先建立代理连接
+	var proxy Proxy
+	if data.ConnectionInfo.Proxy != nil && data.ConnectionInfo.Proxy.Type != "" {
+		s.customProxyMutex.RLock()
+		proxyFactory, exists := s.customProxies[data.ConnectionInfo.Proxy.Type]
+		s.customProxyMutex.RUnlock()
+
+		if exists {
+			proxyConfigJSON, err := json.Marshal(data.ConnectionInfo.Proxy)
+			if err == nil {
+				proxy, _ = proxyFactory(string(proxyConfigJSON))
+			}
+		}
+	}
+
+	// 如果有代理，使用代理包装器
+	if proxy != nil {
+		// 目前只支持MySQL及其兼容数据库的代理连接
+		if data.DbType == "mysql" || data.DbType == "dameng" || data.DbType == "openguass" ||
+			data.DbType == "vastbase" || data.DbType == "kingbase" || data.DbType == "oceandb" {
+			// MySQL及其兼容数据库使用代理包装器
+			db = NewProxyDatabaseWrapper(db, proxy)
+		} else {
+			// 其他数据库类型暂不支持代理，记录警告并关闭代理
+			log.Printf("警告: 数据库类型 %s 暂不支持代理连接，将尝试直接连接", data.DbType)
+			proxy.Close()
+			proxy = nil
+		}
+	}
+
 	if err := db.Connect(data.DSN); err != nil {
+		if proxy != nil {
+			proxy.Close()
+		}
 		return nil, fmt.Errorf("重建连接失败: %w", err)
 	}
 
@@ -302,6 +369,9 @@ func (s *Server) createDatabaseFromSessionData(data *SessionData) (database.Data
 		if err := db.SwitchDatabase(data.CurrentDatabase); err != nil {
 			// 切换失败返回错误，确保数据库正确切换
 			db.Close()
+			if proxy != nil {
+				proxy.Close()
+			}
 			return nil, fmt.Errorf("切换数据库失败: %w", err)
 		}
 	}
@@ -527,6 +597,37 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// 如果有代理配置，先建立代理连接
+	var proxy Proxy
+	if info.Proxy != nil && info.Proxy.Type != "" {
+		// 获取代理工厂
+		s.customProxyMutex.RLock()
+		proxyFactory, exists := s.customProxies[info.Proxy.Type]
+		s.customProxyMutex.RUnlock()
+
+		if !exists {
+			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("不支持的代理类型: %s", info.Proxy.Type))
+			return
+		}
+
+		// 构建代理配置JSON
+		proxyConfigJSON, err := json.Marshal(info.Proxy)
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("构建代理配置失败: %v", err))
+			return
+		}
+
+		// 创建代理
+		proxy, err = proxyFactory(string(proxyConfigJSON))
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("建立代理连接失败: %v", err))
+			return
+		}
+		defer func() {
+			// 注意：代理连接会在会话关闭时关闭，这里不立即关闭
+		}()
+	}
+
 	// 构建DSN
 	var dsn string
 	if info.Type == "clickhouse" {
@@ -534,7 +635,27 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 	} else {
 		dsn = database.BuildDSN(info)
 	}
+
+	// 如果有代理，使用代理包装器
+	if proxy != nil {
+		// 目前只支持MySQL及其兼容数据库的代理连接
+		// 其他数据库类型的代理支持需要进一步实现
+		if info.Type == "mysql" || info.Type == "dameng" || info.Type == "openguass" ||
+			info.Type == "vastbase" || info.Type == "kingbase" || info.Type == "oceandb" {
+			// MySQL及其兼容数据库使用代理包装器
+			db = NewProxyDatabaseWrapper(db, proxy)
+		} else {
+			// 其他数据库类型暂不支持代理，记录警告
+			log.Printf("警告: 数据库类型 %s 暂不支持代理连接，将尝试直接连接", info.Type)
+			proxy.Close()
+			proxy = nil
+		}
+	}
+
 	if err := db.Connect(dsn); err != nil {
+		if proxy != nil {
+			proxy.Close()
+		}
 		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("连接失败: %v", err))
 		return
 	}

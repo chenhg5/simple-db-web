@@ -120,7 +120,22 @@ const connectionForm = document.getElementById('connectionForm');
 const connectionMode = document.getElementById('connectionMode');
 const dsnGroup = document.getElementById('dsnGroup');
 const formGroup = document.getElementById('formGroup');
-const connectionPanel = document.getElementById('connectionPanel');
+const connectionsPanel = document.getElementById('connectionsPanel');
+const activeConnectionsList = document.getElementById('activeConnectionsList');
+const newConnectionBtn = document.getElementById('newConnectionBtn');
+const newConnectionModal = document.getElementById('newConnectionModal');
+const closeNewConnectionModal = document.getElementById('closeNewConnectionModal');
+const cancelNewConnection = document.getElementById('cancelNewConnection');
+const confirmNewConnection = document.getElementById('confirmNewConnection');
+const useProxy = document.getElementById('useProxy');
+const proxyGroup = document.getElementById('proxyGroup');
+const proxyType = document.getElementById('proxyType');
+const proxyHost = document.getElementById('proxyHost');
+const proxyPort = document.getElementById('proxyPort');
+const proxyUser = document.getElementById('proxyUser');
+const proxyPassword = document.getElementById('proxyPassword');
+const proxyKeyData = document.getElementById('proxyKeyData');
+const toggleProxyPassword = document.getElementById('toggleProxyPassword');
 const databasePanel = document.getElementById('databasePanel');
 const databaseSelect = document.getElementById('databaseSelect');
 const disconnectBtn = document.getElementById('disconnectBtn');
@@ -177,17 +192,46 @@ const confirmClearAllConnections = document.getElementById('confirmClearAllConne
 // 删除连接相关的状态
 let deleteConnectionIndex = null;
 
+// 活动连接列表（支持多个连接）
+let activeConnections = new Map(); // connectionId -> connectionInfo
+
 // 密码显示/隐藏切换
-togglePassword.addEventListener('click', () => {
-    const passwordInput = document.getElementById('password');
-    if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        togglePassword.textContent = '🙈';
-    } else {
-        passwordInput.type = 'password';
-        togglePassword.textContent = '👁️';
-    }
-});
+if (togglePassword) {
+    togglePassword.addEventListener('click', () => {
+        const passwordInput = document.getElementById('password');
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            togglePassword.textContent = '🙈';
+        } else {
+            passwordInput.type = 'password';
+            togglePassword.textContent = '👁️';
+        }
+    });
+}
+
+// 代理密码显示/隐藏切换
+if (toggleProxyPassword) {
+    toggleProxyPassword.addEventListener('click', () => {
+        if (proxyPassword.type === 'password') {
+            proxyPassword.type = 'text';
+            toggleProxyPassword.textContent = '🙈';
+        } else {
+            proxyPassword.type = 'password';
+            toggleProxyPassword.textContent = '👁️';
+        }
+    });
+}
+
+// 代理配置显示/隐藏
+if (useProxy) {
+    useProxy.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            proxyGroup.style.display = 'block';
+        } else {
+            proxyGroup.style.display = 'none';
+        }
+    });
+}
 
 // 连接模式切换
 connectionMode.addEventListener('change', (e) => {
@@ -590,7 +634,11 @@ async function restoreConnection() {
         // 临时设置connectionId以便apiRequest自动添加header
         const originalConnectionId = connectionId;
         connectionId = savedConnectionId;
-        const response = await apiRequest(`${API_BASE}/status`);
+        const response = await apiRequest(`${API_BASE}/status`, {
+            headers: {
+                'X-Connection-ID': savedConnectionId
+            }
+        });
         connectionId = originalConnectionId;
         const data = await response.json();
         
@@ -600,11 +648,19 @@ async function restoreConnection() {
             if (savedConnectionInfo) {
                 connectionInfo = JSON.parse(savedConnectionInfo);
                 currentDbType = data.dbType || connectionInfo.type || null; // 恢复数据库类型
+                
+                // 添加到活动连接列表
+                activeConnections.set(savedConnectionId, {
+                    connectionId: savedConnectionId,
+                    connectionInfo: connectionInfo,
+                    databases: data.databases || []
+                });
+                
                 updateConnectionInfo(connectionInfo);
             }
             // 有活动的连接，恢复UI状态
             updateConnectionStatus(true);
-            connectionPanel.style.display = 'none';
+            updateActiveConnectionsList();
             databasePanel.style.display = 'block';
             
             // 加载数据库列表
@@ -644,26 +700,125 @@ document.addEventListener('DOMContentLoaded', () => {
     restoreConnection();
 });
 
-// 连接数据库
-connectionForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+// 新增连接按钮点击事件
+if (newConnectionBtn) {
+    newConnectionBtn.addEventListener('click', () => {
+        // 清空表单
+        if (connectionForm) {
+            connectionForm.reset();
+        }
+        // 重置代理配置
+        if (useProxy) {
+            useProxy.checked = false;
+            proxyGroup.style.display = 'none';
+        }
+        // 显示模态框
+        if (newConnectionModal) {
+            newConnectionModal.style.display = 'flex';
+        }
+    });
+}
+
+// 关闭新增连接模态框
+if (closeNewConnectionModal) {
+    closeNewConnectionModal.addEventListener('click', () => {
+        if (newConnectionModal) {
+            newConnectionModal.style.display = 'none';
+        }
+    });
+}
+
+if (cancelNewConnection) {
+    cancelNewConnection.addEventListener('click', () => {
+        if (newConnectionModal) {
+            newConnectionModal.style.display = 'none';
+        }
+    });
+}
+
+// 连接数据库（在模态框中）
+if (confirmNewConnection) {
+    confirmNewConnection.addEventListener('click', async () => {
+        await handleConnect();
+    });
+}
+
+// 连接表单提交（兼容旧代码）
+if (connectionForm) {
+    connectionForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handleConnect();
+    });
+}
+
+// 统一的连接处理函数
+async function handleConnect() {
+    const mode = connectionMode ? connectionMode.value : 'form';
+    const dbType = document.getElementById('dbType') ? document.getElementById('dbType').value : '';
     
-    const mode = connectionMode.value;
-    const dbType = document.getElementById('dbType').value;
+    if (!dbType) {
+        showNotification('请选择数据库类型', 'error');
+        return;
+    }
     
     let connectionInfo = {
         type: dbType
     };
     
+    // 构建连接信息
     if (mode === 'dsn') {
-        connectionInfo.dsn = document.getElementById('dsn').value;
+        const dsnInput = document.getElementById('dsn');
+        if (dsnInput && dsnInput.value) {
+            connectionInfo.dsn = dsnInput.value;
+        } else {
+            showNotification('请输入DSN连接字符串', 'error');
+            return;
+        }
     } else {
-        connectionInfo.host = document.getElementById('host').value;
-        connectionInfo.port = document.getElementById('port').value || '3306';
-        connectionInfo.user = document.getElementById('user').value;
-        connectionInfo.password = document.getElementById('password').value;
-        // 不指定数据库,连接后让用户选择
+        const hostInput = document.getElementById('host');
+        const userInput = document.getElementById('user');
+        if (!hostInput || !hostInput.value || !userInput || !userInput.value) {
+            showNotification('请填写主机和用户名', 'error');
+            return;
+        }
+        connectionInfo.host = hostInput.value;
+        connectionInfo.port = document.getElementById('port') ? (document.getElementById('port').value || '3306') : '3306';
+        connectionInfo.user = userInput.value;
+        connectionInfo.password = document.getElementById('password') ? document.getElementById('password').value : '';
         connectionInfo.database = '';
+    }
+    
+    // 构建代理配置（如果启用）
+    if (useProxy && useProxy.checked) {
+        const proxyConfig = {
+            type: proxyType ? proxyType.value : 'ssh',
+            host: proxyHost ? proxyHost.value : '',
+            port: proxyPort ? (proxyPort.value || '22') : '22',
+            user: proxyUser ? proxyUser.value : '',
+            password: proxyPassword ? proxyPassword.value : '',
+            key_file: '',
+            config: ''
+        };
+        
+        // 如果提供了SSH私钥
+        if (proxyKeyData && proxyKeyData.value) {
+            proxyConfig.config = JSON.stringify({
+                key_data: proxyKeyData.value
+            });
+        }
+        
+        if (!proxyConfig.host || !proxyConfig.user) {
+            showNotification('请填写代理主机和用户名', 'error');
+            return;
+        }
+        
+        connectionInfo.proxy = proxyConfig;
+    }
+    
+    // 设置按钮加载状态
+    const connectBtn = confirmNewConnection || connectionForm?.querySelector('button[type="submit"]');
+    if (connectBtn) {
+        setButtonLoading(connectBtn, true);
     }
     
     try {
@@ -676,49 +831,62 @@ connectionForm.addEventListener('submit', async (e) => {
         
         if (response.ok && data.success) {
             // 保存连接ID和连接信息
-            connectionId = data.connectionId;
+            const newConnectionId = data.connectionId;
             const connInfo = {
                 type: dbType,
-                host: mode === 'form' ? document.getElementById('host').value : '',
-                port: mode === 'form' ? (document.getElementById('port').value || '3306') : '',
-                user: mode === 'form' ? document.getElementById('user').value : '',
-                dsn: mode === 'dsn' ? document.getElementById('dsn').value : ''
+                host: mode === 'form' ? (document.getElementById('host')?.value || '') : '',
+                port: mode === 'form' ? (document.getElementById('port')?.value || '3306') : '3306',
+                user: mode === 'form' ? (document.getElementById('user')?.value || '') : '',
+                dsn: mode === 'dsn' ? (document.getElementById('dsn')?.value || '') : '',
+                proxy: connectionInfo.proxy || null
             };
+            
+            // 添加到活动连接列表
+            activeConnections.set(newConnectionId, {
+                connectionId: newConnectionId,
+                connectionInfo: connInfo,
+                databases: data.databases || []
+            });
+            
+            // 更新当前连接（兼容旧代码）
+            connectionId = newConnectionId;
             connectionInfo = connInfo;
-            currentDbType = dbType; // 保存数据库类型
-            sessionStorage.setItem('currentConnectionId', connectionId);
+            currentDbType = dbType;
+            
+            // 保存到sessionStorage（用于页面刷新后恢复）
+            sessionStorage.setItem('currentConnectionId', newConnectionId);
             sessionStorage.setItem('currentConnectionInfo', JSON.stringify(connInfo));
+            
+            // 更新UI
             updateConnectionStatus(true);
             updateConnectionInfo(connInfo);
+            updateActiveConnectionsList();
             
             // 如果勾选了"记住连接"，保存连接信息
-            if (rememberConnection.checked) {
-                // 构建用于保存的完整连接信息（包含密码）
+            if (rememberConnection && rememberConnection.checked) {
                 const connectionToSave = {
-                    type: dbType,
-                    host: mode === 'form' ? document.getElementById('host').value : '',
-                    port: mode === 'form' ? (document.getElementById('port').value || '3306') : '',
-                    user: mode === 'form' ? document.getElementById('user').value : '',
-                    password: mode === 'form' ? document.getElementById('password').value : '',
-                    dsn: mode === 'dsn' ? document.getElementById('dsn').value : ''
+                    ...connInfo,
+                    password: mode === 'form' ? (document.getElementById('password')?.value || '') : ''
                 };
                 saveConnection(connectionToSave);
             }
             
+            // 关闭模态框
+            if (newConnectionModal) {
+                newConnectionModal.style.display = 'none';
+            }
+            
             // 检查DSN中是否包含数据库
-            const dsn = mode === 'dsn' ? document.getElementById('dsn').value : '';
+            const dsn = mode === 'dsn' ? (document.getElementById('dsn')?.value || '') : '';
             const hasDatabaseInDSN = dsn && (dsn.includes('/') && !dsn.endsWith('/') && !dsn.endsWith('/?'));
             
             if (hasDatabaseInDSN) {
                 // DSN中包含数据库,直接使用该数据库
-                connectionPanel.style.display = 'none';
                 databasePanel.style.display = 'block';
                 await loadDatabases(data.databases || []);
-                // 尝试从DSN中提取数据库名
                 const dbMatch = dsn.match(/\/([^\/\?]+)/);
                 if (dbMatch && dbMatch[1]) {
                     const dbName = dbMatch[1];
-                    // 设置选择器并切换数据库
                     databaseSelect.value = dbName;
                     await switchDatabase(dbName);
                 } else {
@@ -726,7 +894,6 @@ connectionForm.addEventListener('submit', async (e) => {
                 }
             } else {
                 // DSN中不包含数据库,显示数据库选择器
-                connectionPanel.style.display = 'none';
                 databasePanel.style.display = 'block';
                 await loadDatabases(data.databases || []);
             }
@@ -737,9 +904,149 @@ connectionForm.addEventListener('submit', async (e) => {
     } catch (error) {
         showNotification('连接失败: ' + error.message, 'error');
     } finally {
-        setButtonLoading(connectBtn, false);
+        if (connectBtn) {
+            setButtonLoading(connectBtn, false);
+        }
     }
-});
+}
+
+// 更新活动连接列表
+function updateActiveConnectionsList() {
+    if (!activeConnectionsList) return;
+    
+    activeConnectionsList.innerHTML = '';
+    
+    if (activeConnections.size === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.style.cssText = 'padding: 1rem; color: var(--text-secondary); text-align: center; font-size: 0.875rem;';
+        emptyMsg.textContent = '暂无活动连接';
+        activeConnectionsList.appendChild(emptyMsg);
+        return;
+    }
+    
+    activeConnections.forEach((conn, connId) => {
+        const connItem = document.createElement('div');
+        connItem.style.cssText = 'padding: 0.75rem; margin-bottom: 0.5rem; background: var(--surface); border-radius: 4px; border: 1px solid var(--border-color);';
+        
+        const info = conn.connectionInfo;
+        let displayText = '';
+        if (info.dsn) {
+            const userMatch = info.dsn.match(/^([^:]+):/);
+            const hostMatch = info.dsn.match(/@tcp\(([^:]+)/);
+            const user = userMatch ? userMatch[1] : 'unknown';
+            const host = hostMatch ? hostMatch[1] : 'unknown';
+            displayText = `${info.type || 'mysql'}://${user}@${host}`;
+        } else {
+            displayText = `${info.type || 'mysql'}://${info.user || 'unknown'}@${info.host || 'unknown'}:${info.port || '3306'}`;
+        }
+        
+        if (info.proxy) {
+            displayText += ` [通过${info.proxy.type || 'proxy'}]`;
+        }
+        
+        connItem.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1; overflow: hidden;">
+                    <div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${displayText}">${displayText}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">连接ID: ${connId.substring(0, 8)}...</div>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary switch-connection-btn" data-connection-id="${connId}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">切换</button>
+                    <button class="btn btn-danger disconnect-connection-btn" data-connection-id="${connId}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">断开</button>
+                </div>
+            </div>
+        `;
+        
+        // 切换连接
+        const switchBtn = connItem.querySelector('.switch-connection-btn');
+        switchBtn.addEventListener('click', async () => {
+            await switchToConnection(connId);
+        });
+        
+        // 断开连接
+        const disconnectBtn = connItem.querySelector('.disconnect-connection-btn');
+        disconnectBtn.addEventListener('click', async () => {
+            await disconnectConnection(connId);
+        });
+        
+        activeConnectionsList.appendChild(connItem);
+    });
+}
+
+// 切换到指定连接
+async function switchToConnection(targetConnectionId) {
+    if (!targetConnectionId || !activeConnections.has(targetConnectionId)) {
+        showNotification('连接不存在', 'error');
+        return;
+    }
+    
+    const conn = activeConnections.get(targetConnectionId);
+    connectionId = targetConnectionId;
+    connectionInfo = conn.connectionInfo;
+    currentDbType = conn.connectionInfo.type;
+    
+    // 更新sessionStorage
+    sessionStorage.setItem('currentConnectionId', targetConnectionId);
+    sessionStorage.setItem('currentConnectionInfo', JSON.stringify(conn.connectionInfo));
+    
+    // 更新UI
+    updateConnectionStatus(true);
+    updateConnectionInfo(conn.connectionInfo);
+    
+    // 加载数据库列表
+    databasePanel.style.display = 'block';
+    await loadDatabases(conn.databases || []);
+    
+    showNotification('已切换到连接', 'success');
+}
+
+// 断开指定连接
+async function disconnectConnection(targetConnectionId) {
+    if (!targetConnectionId) return;
+    
+    setButtonLoading(disconnectBtn, true);
+    try {
+        const response = await apiRequest(`${API_BASE}/disconnect`, {
+            method: 'POST',
+            headers: {
+                'X-Connection-ID': targetConnectionId
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // 从活动连接列表移除
+            activeConnections.delete(targetConnectionId);
+            
+            // 如果断开的是当前连接，清除当前连接状态
+            if (targetConnectionId === connectionId) {
+                connectionId = null;
+                connectionInfo = null;
+                sessionStorage.removeItem('currentConnectionId');
+                sessionStorage.removeItem('currentConnectionInfo');
+                updateConnectionStatus(false);
+                updateConnectionInfo(null);
+                databasePanel.style.display = 'none';
+                tablesPanel.style.display = 'none';
+                currentTable = null;
+                databaseSelect.innerHTML = '<option value="">请选择数据库...</option>';
+                tableFilter.value = '';
+                allTables = [];
+                currentColumns = [];
+            }
+            
+            updateActiveConnectionsList();
+            showNotification('已断开连接', 'success');
+        } else {
+            showNotification(data.message || '断开连接失败', 'error');
+        }
+    } catch (error) {
+        showNotification('断开连接失败: ' + error.message, 'error');
+    } finally {
+        setButtonLoading(disconnectBtn, false);
+    }
+}
 
 // 更新连接状态
 function updateConnectionStatus(connected) {
@@ -917,44 +1224,16 @@ function filterTables() {
 // 表筛选输入框事件
 tableFilter.addEventListener('input', filterTables);
 
-// 断开连接
-disconnectBtn.addEventListener('click', async () => {
-    setButtonLoading(disconnectBtn, true);
-    try {
-        const response = await apiRequest(`${API_BASE}/disconnect`, {
-            method: 'POST'
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok && data.success) {
-            // 清除连接ID和连接信息
-            connectionId = null;
-            connectionInfo = null;
-            sessionStorage.removeItem('currentConnectionId');
-            sessionStorage.removeItem('currentConnectionInfo');
-            updateConnectionStatus(false);
-            updateConnectionInfo(null);
-            // 显示连接表单,隐藏数据库选择器
-            connectionPanel.style.display = 'block';
-            databasePanel.style.display = 'none';
-            tablesPanel.style.display = 'none';
-            currentTable = null;
-            databaseSelect.innerHTML = '<option value="">请选择数据库...</option>';
-            // 清空筛选框和表列表
-            tableFilter.value = '';
-            allTables = [];
-            currentColumns = [];
-            showNotification('已断开连接', 'success');
-        } else {
-            showNotification(data.message || '断开连接失败', 'error');
+// 断开当前连接
+if (disconnectBtn) {
+    disconnectBtn.addEventListener('click', async () => {
+        if (!connectionId) {
+            showNotification('没有活动连接', 'error');
+            return;
         }
-    } catch (error) {
-        showNotification('断开连接失败: ' + error.message, 'error');
-    } finally {
-        setButtonLoading(disconnectBtn, false);
-    }
-});
+        await disconnectConnection(connectionId);
+    });
+}
 
 // 加载表列表
 async function loadTables() {

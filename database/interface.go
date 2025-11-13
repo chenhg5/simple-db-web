@@ -57,13 +57,25 @@ type ColumnInfo struct {
 	Key          string `json:"key"` // PRI, UNI, MUL等
 }
 
+// ProxyConfig 代理配置
+type ProxyConfig struct {
+	Type     string `json:"type"`     // 代理类型，如 "ssh", "socks5" 等
+	Host     string `json:"host"`     // 代理服务器地址
+	Port     string `json:"port"`     // 代理服务器端口
+	User     string `json:"user"`     // 代理用户名（如果需要）
+	Password string `json:"password"` // 代理密码（如果需要）
+	KeyFile  string `json:"key_file"` // SSH密钥文件路径（仅SSH）
+	Config   string `json:"config"`   // 其他代理配置（JSON字符串，用于自定义代理）
+}
+
 // ConnectionInfo 连接信息
 type ConnectionInfo struct {
-	Type     string `json:"type"` // mysql, postgresql等
-	Host     string `json:"host"`
-	Port     string `json:"port"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	Database string `json:"database"`
-	DSN      string `json:"dsn"` // 如果提供DSN，则优先使用
+	Type     string       `json:"type"`     // mysql, postgresql等
+	Host     string       `json:"host"`     // 数据库主机地址
+	Port     string       `json:"port"`     // 数据库端口
+	User     string       `json:"user"`     // 数据库用户名
+	Password string       `json:"password"` // 数据库密码
+	Database string       `json:"database"` // 数据库名
+	DSN      string       `json:"dsn"`      // 如果提供DSN，则优先使用
+	Proxy    *ProxyConfig `json:"proxy"`    // 代理配置（可选）
 }
