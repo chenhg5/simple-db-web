@@ -86,8 +86,8 @@ func (c *ClickHouse) GetTableSchema(tableName string) (string, error) {
 		if !first {
 			schema.WriteString(",\n")
 		}
-		var name, typeStr, defaultType, defaultExpr, comment, codec string
-		if err := rows.Scan(&name, &typeStr, &defaultType, &defaultExpr, &comment, &codec); err != nil {
+		var name, typeStr, defaultType, defaultExpr, comment, codec, ttl string
+		if err := rows.Scan(&name, &typeStr, &defaultType, &defaultExpr, &comment, &codec, &ttl); err != nil {
 			return "", err
 		}
 		schema.WriteString(fmt.Sprintf("  `%s` %s", name, typeStr))
@@ -99,6 +99,9 @@ func (c *ClickHouse) GetTableSchema(tableName string) (string, error) {
 		}
 		if codec != "" {
 			schema.WriteString(fmt.Sprintf(" CODEC(%s)", codec))
+		}
+		if ttl != "" {
+			schema.WriteString(fmt.Sprintf(" TTL %s", ttl))
 		}
 		first = false
 	}
@@ -119,9 +122,9 @@ func (c *ClickHouse) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 	var columns []ColumnInfo
 	for rows.Next() {
 		var col ColumnInfo
-		var typeStr, defaultType, defaultExpr, comment, codec string
+		var typeStr, defaultType, defaultExpr, comment, codec, ttl string
 
-		if err := rows.Scan(&col.Name, &typeStr, &defaultType, &defaultExpr, &comment, &codec); err != nil {
+		if err := rows.Scan(&col.Name, &typeStr, &defaultType, &defaultExpr, &comment, &codec, &ttl); err != nil {
 			return nil, err
 		}
 
@@ -133,6 +136,7 @@ func (c *ClickHouse) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 		if defaultExpr != "" {
 			col.DefaultValue = defaultExpr
 		}
+		// 注意：ttl 字段暂不存储到 ColumnInfo 中，因为 ColumnInfo 结构中没有对应字段
 
 		columns = append(columns, col)
 	}
