@@ -70,10 +70,11 @@ type ProxyConfig struct {
 
 // ConnectionInfo 连接信息
 type ConnectionInfo struct {
-	Type     string       `json:"type"`     // mysql, postgresql等
-	Host     string       `json:"host"`     // 数据库主机地址
+	Name     string       `json:"name"`     // 连接名称（可选，用于显示）
+	Type     string       `json:"type"`    // mysql, postgresql等
+	Host     string       `json:"host"`    // 数据库主机地址
 	Port     string       `json:"port"`     // 数据库端口
-	User     string       `json:"user"`     // 数据库用户名
+	User     string       `json:"user"`    // 数据库用户名
 	Password string       `json:"password"` // 数据库密码
 	Database string       `json:"database"` // 数据库名
 	DSN      string       `json:"dsn"`      // 如果提供DSN，则优先使用

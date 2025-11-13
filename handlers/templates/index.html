@@ -310,6 +310,10 @@
             <div class="modal-body">
                 <form id="connectionForm" class="connection-form">
                     <div class="form-group">
+                        <label data-i18n="connection.name">连接名称（可选）</label>
+                        <input type="text" id="connectionName" class="form-control" data-i18n-placeholder="connection.namePlaceholder" placeholder="例如：生产环境MySQL">
+                    </div>
+                    <div class="form-group">
                         <label data-i18n="connection.dbType">数据库类型</label>
                         <select id="dbType" class="form-control">
                             <option value="" data-i18n="common.loading">加载中...</option>

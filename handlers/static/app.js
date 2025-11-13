@@ -28,6 +28,8 @@ const i18n = {
             'connection.management': 'Connection Management',
             'connection.new': '+ New Connection',
             'connection.newTitle': 'New Database Connection',
+            'connection.name': 'Connection Name (Optional)',
+            'connection.namePlaceholder': 'e.g., Production MySQL',
             'connection.noActive': 'No Active Connections',
             'connection.saved': 'Saved Connections',
             'connection.remember': 'Remember Connection',
@@ -160,6 +162,8 @@ const i18n = {
             'connection.management': '连接管理',
             'connection.new': '+ 新增连接',
             'connection.newTitle': '新增数据库连接',
+            'connection.name': '连接名称（可选）',
+            'connection.namePlaceholder': '例如：生产环境MySQL',
             'connection.noActive': '暂无活动连接',
             'connection.saved': '已保存的连接',
             'connection.remember': '记住连接',
@@ -298,6 +302,8 @@ const i18n = {
             'connection.management': '連接管理',
             'connection.new': '+ 新增連接',
             'connection.newTitle': '新增資料庫連接',
+            'connection.name': '連接名稱（可選）',
+            'connection.namePlaceholder': '例如：生產環境MySQL',
             'connection.noActive': '暫無活動連接',
             'connection.saved': '已儲存的連接',
             'connection.remember': '記住連接',
@@ -878,6 +884,12 @@ function loadSavedConnections() {
     
     saved.forEach((conn, index) => {
         let displayText = '';
+        
+        // 如果有连接名，优先显示连接名
+        if (conn.name && conn.name.trim()) {
+            displayText = conn.name;
+        } else {
+            // 否则使用原来的格式
         if (conn.dsn) {
             // DSN 模式
             const userMatch = conn.dsn.match(/^([^:]+):/);
@@ -887,6 +899,7 @@ function loadSavedConnections() {
             displayText = `${conn.type || 'mysql'}://${user}@${host}`;
         } else {
             displayText = `${conn.type || 'mysql'}://${conn.user || 'unknown'}@${conn.host || 'unknown'}:${conn.port || '3306'}`;
+            }
         }
         
         // 创建按钮容器
@@ -931,9 +944,20 @@ async function connectWithSavedConnection(savedConn) {
     // 填充表单
     document.getElementById('dbType').value = savedConn.type || 'mysql';
     
+    // 填充连接名（如果存在）
+    const connectionNameInput = document.getElementById('connectionName');
+    if (connectionNameInput && savedConn.name) {
+        connectionNameInput.value = savedConn.name;
+    }
+    
     let connectionInfo = {
         type: savedConn.type || 'mysql'
     };
+    
+    // 如果有连接名，添加到连接信息中
+    if (savedConn.name) {
+        connectionInfo.name = savedConn.name;
+    }
     
     if (savedConn.dsn) {
         // DSN 模式
@@ -984,6 +1008,7 @@ async function connectWithSavedConnection(savedConn) {
             const newConnectionId = data.connectionId;
             const connInfo = {
                 type: savedConn.type || 'mysql',
+                name: savedConn.name || '',
                 host: savedConn.host || '',
                 port: savedConn.port || '3306',
                 user: savedConn.user || '',
@@ -1492,9 +1517,18 @@ async function handleConnect() {
         return;
     }
     
+    // 获取连接名（可选）
+    const connectionNameInput = document.getElementById('connectionName');
+    const connectionName = connectionNameInput ? connectionNameInput.value.trim() : '';
+    
     let connectionInfo = {
         type: dbType
     };
+    
+    // 如果有连接名，添加到连接信息中
+    if (connectionName) {
+        connectionInfo.name = connectionName;
+    }
     
     // 构建连接信息
     if (mode === 'dsn') {
@@ -1565,6 +1599,7 @@ async function handleConnect() {
             const newConnectionId = data.connectionId;
             const connInfo = {
                 type: dbType,
+                name: connectionName || '',
                 host: mode === 'form' ? (document.getElementById('host')?.value || '') : '',
                 port: mode === 'form' ? (document.getElementById('port')?.value || '3306') : '3306',
                 user: mode === 'form' ? (document.getElementById('user')?.value || '') : '',
@@ -1661,14 +1696,21 @@ function updateActiveConnectionsList() {
         
         const info = conn.connectionInfo;
         let displayText = '';
-        if (info.dsn) {
-            const userMatch = info.dsn.match(/^([^:]+):/);
-            const hostMatch = info.dsn.match(/@tcp\(([^:]+)/);
-            const user = userMatch ? userMatch[1] : 'unknown';
-            const host = hostMatch ? hostMatch[1] : 'unknown';
-            displayText = `${info.type || 'mysql'}://${user}@${host}`;
+        
+        // 如果有连接名，优先显示连接名
+        if (info.name && info.name.trim()) {
+            displayText = info.name;
         } else {
-            displayText = `${info.type || 'mysql'}://${info.user || 'unknown'}@${info.host || 'unknown'}:${info.port || '3306'}`;
+            // 否则使用原来的格式
+            if (info.dsn) {
+                const userMatch = info.dsn.match(/^([^:]+):/);
+                const hostMatch = info.dsn.match(/@tcp\(([^:]+)/);
+                const user = userMatch ? userMatch[1] : 'unknown';
+                const host = hostMatch ? hostMatch[1] : 'unknown';
+                displayText = `${info.type || 'mysql'}://${user}@${host}`;
+            } else {
+                displayText = `${info.type || 'mysql'}://${info.user || 'unknown'}@${info.host || 'unknown'}:${info.port || '3306'}`;
+            }
         }
         
         if (info.proxy) {
@@ -1828,6 +1870,11 @@ function updateConnectionInfo(info) {
         dbTypeName = dbTypeNames[info.type] || info.type;
     }
     
+    // 如果有连接名，优先显示连接名
+    if (info.name && info.name.trim()) {
+        infoText = info.name;
+    } else {
+        // 否则使用原来的格式
     if (info.dsn) {
         // DSN 模式：尝试从 DSN 中提取信息
         const userMatch = info.dsn.match(/^([^:]+):/);
@@ -1843,6 +1890,7 @@ function updateConnectionInfo(info) {
         const port = info.port || '3306';
         const user = info.user || 'unknown';
         infoText = `${dbTypeName}://${user}@${host}:${port}`;
+        }
     }
     
     connectionInfoText.textContent = infoText;
