@@ -81,6 +81,33 @@ type ProxyFactory func(config string) (Proxy, error)
 // DatabaseFactory 数据库工厂函数类型
 type DatabaseFactory func() database.Database
 
+// SQLValidator SQL校验器接口
+// 允许外部项目实现自定义的SQL校验规则
+type SQLValidator interface {
+	// Validate 校验SQL语句
+	// query: SQL查询语句
+	// queryType: SQL类型（SELECT, UPDATE, DELETE, INSERT等）
+	// 返回错误信息，如果校验通过返回nil
+	Validate(query string, queryType string) error
+
+	// Name 返回校验器名称（用于日志和错误提示）
+	Name() string
+}
+
+// SQLValidatorFunc SQL校验器函数类型（简化版本）
+// 可以直接使用函数作为校验器
+type SQLValidatorFunc func(query string, queryType string) error
+
+// Validate 实现SQLValidator接口
+func (f SQLValidatorFunc) Validate(query string, queryType string) error {
+	return f(query, queryType)
+}
+
+// Name 返回校验器名称
+func (f SQLValidatorFunc) Name() string {
+	return "CustomValidator"
+}
+
 // DatabaseTypeInfo 数据库类型信息
 type DatabaseTypeInfo struct {
 	Type        string `json:"type"`         // 数据库类型标识
@@ -151,6 +178,8 @@ type Server struct {
 	builtinTypes      map[string]string // 内置数据库类型及其显示名称
 	customScript      string            // 自定义JavaScript脚本，会在页面加载后执行
 	customScriptMutex sync.RWMutex      // 保护customScript的读写锁
+	validators        []SQLValidator    // SQL校验器列表
+	validatorsMutex   sync.RWMutex      // 保护validators的读写锁
 }
 
 // NewServer 创建新的服务器实例
@@ -184,10 +213,16 @@ func NewServer() (*Server, error) {
 		customDatabases: make(map[string]DatabaseFactory),
 		customProxies:   make(map[string]ProxyFactory),
 		builtinTypes:    builtinTypes,
+		validators:      make([]SQLValidator, 0),
 	}
 
 	// 注册默认的SSH代理
 	server.AddProxy("ssh", NewSSHProxy)
+
+	// 注册默认的SQL校验器
+	server.AddValidator(NewRequireLimitValidator())
+	server.AddValidator(NewNoDropTableValidator())
+	server.AddValidator(NewNoTruncateValidator())
 
 	return server, nil
 }
@@ -224,6 +259,37 @@ func (s *Server) AddProxy(name string, factory ProxyFactory) {
 	s.customProxyMutex.Lock()
 	defer s.customProxyMutex.Unlock()
 	s.customProxies[name] = factory
+}
+
+// AddValidator 添加SQL校验器
+// 允许外部项目注册自定义的SQL校验规则
+// 示例：
+//
+//	server.AddValidator(MyCustomValidator{})
+//	// 或使用函数
+//	server.AddValidator(SQLValidatorFunc(func(query, queryType string) error {
+//	    if strings.Contains(query, "DROP") {
+//	        return fmt.Errorf("不允许执行DROP语句")
+//	    }
+//	    return nil
+//	}))
+func (s *Server) AddValidator(validator SQLValidator) {
+	s.validatorsMutex.Lock()
+	defer s.validatorsMutex.Unlock()
+	s.validators = append(s.validators, validator)
+}
+
+// validateSQL 执行所有注册的SQL校验器
+func (s *Server) validateSQL(query string, queryType string) error {
+	s.validatorsMutex.RLock()
+	defer s.validatorsMutex.RUnlock()
+
+	for _, validator := range s.validators {
+		if err := validator.Validate(query, queryType); err != nil {
+			return fmt.Errorf("[%s] %v", validator.Name(), err)
+		}
+	}
+	return nil
 }
 
 // GetDatabaseTypes 获取所有可用的数据库类型列表
@@ -900,8 +966,21 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 判断SQL类型
-	queryUpper := fmt.Sprintf("%.6s", req.Query)
-	if queryUpper == "SELECT" || queryUpper == "select" {
+	queryUpper := strings.ToUpper(strings.TrimSpace(req.Query))
+	queryType := ""
+	if len(queryUpper) >= 6 {
+		queryType = queryUpper[:6]
+	}
+
+	// 执行SQL校验
+	if err := s.validateSQL(req.Query, queryType); err != nil {
+		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("SQL校验失败: %v", err))
+		return
+	}
+
+	// 判断SQL类型（兼容旧代码）
+	queryUpperPrefix := fmt.Sprintf("%.6s", req.Query)
+	if queryType == "SELECT" || queryUpperPrefix == "SELECT" || queryUpperPrefix == "select" {
 		results, err := session.db.ExecuteQuery(req.Query)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("执行查询失败: %v", err))
@@ -911,7 +990,7 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 			"success": true,
 			"data":    results,
 		})
-	} else if queryUpper == "UPDATE" || queryUpper == "update" {
+	} else if queryType == "UPDATE" || queryUpperPrefix == "UPDATE" || queryUpperPrefix == "update" {
 		affected, err := session.db.ExecuteUpdate(req.Query)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("执行更新失败: %v", err))
@@ -921,7 +1000,7 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 			"success":  true,
 			"affected": affected,
 		})
-	} else if queryUpper == "DELETE" || queryUpper == "delete" {
+	} else if queryType == "DELETE" || queryUpperPrefix == "DELETE" || queryUpperPrefix == "delete" {
 		affected, err := session.db.ExecuteDelete(req.Query)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("执行删除失败: %v", err))
@@ -931,7 +1010,7 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 			"success":  true,
 			"affected": affected,
 		})
-	} else if queryUpper == "INSERT" || queryUpper == "insert" {
+	} else if queryType == "INSERT" || queryUpperPrefix == "INSERT" || queryUpperPrefix == "insert" {
 		affected, err := session.db.ExecuteInsert(req.Query)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("执行插入失败: %v", err))
