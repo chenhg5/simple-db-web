@@ -148,6 +148,7 @@ const dataTableBody = document.getElementById('dataTableBody');
 const refreshData = document.getElementById('refreshData');
 const pagination = document.getElementById('pagination');
 const paginationInfo = document.getElementById('paginationInfo');
+const pageSizeSelect = document.getElementById('pageSizeSelect');
 const schemaContent = document.getElementById('schemaContent');
 const copySchemaBtn = document.getElementById('copySchemaBtn');
 const sqlQuery = document.getElementById('sqlQuery');
@@ -1207,16 +1208,31 @@ function updatePagination(total, page, pageSize, isClickHouse = false) {
     
     const totalPages = Math.ceil(total / pageSize);
     
+    // 如果没有数据，显示提示并禁用所有分页按钮
+    if (total === 0) {
+        paginationInfo.textContent = '没有数据';
+        pagination.innerHTML = `
+            <button disabled>上一页</button>
+            <button disabled>下一页</button>
+        `;
+        return;
+    }
+    
     paginationInfo.textContent = `共 ${total} 条，第 ${page}/${totalPages} 页`;
     
     let paginationHTML = '';
-    paginationHTML += `<button ${page === 1 ? 'disabled' : ''} onclick="changePage(${page - 1})">上一页</button>`;
+    // 上一页按钮：第一页或没有数据时禁用
+    const prevDisabled = page === 1 || total === 0;
+    paginationHTML += `<button ${prevDisabled ? 'disabled' : ''} onclick="changePage(${page - 1})">上一页</button>`;
     
+    // 页码按钮
     for (let i = Math.max(1, page - 2); i <= Math.min(totalPages, page + 2); i++) {
         paginationHTML += `<button class="${i === page ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
     }
     
-    paginationHTML += `<button ${page === totalPages ? 'disabled' : ''} onclick="changePage(${page + 1})">下一页</button>`;
+    // 下一页按钮：最后一页或没有数据时禁用
+    const nextDisabled = page >= totalPages || total === 0;
+    paginationHTML += `<button ${nextDisabled ? 'disabled' : ''} onclick="changePage(${page + 1})">下一页</button>`;
     pagination.innerHTML = paginationHTML;
 }
 
@@ -1225,6 +1241,14 @@ function changePage(page) {
     currentPage = page;
     loadTableData();
 }
+
+// 分页大小改变
+pageSizeSelect.addEventListener('change', (e) => {
+    const newPageSize = parseInt(e.target.value);
+    pageSize = newPageSize;
+    currentPage = 1; // 重置到第一页
+    loadTableData();
+});
 
 // 刷新数据
 refreshData.addEventListener('click', loadTableData);

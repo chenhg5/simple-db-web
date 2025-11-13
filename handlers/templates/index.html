@@ -144,6 +144,16 @@
                     <div class="toolbar">
                         <button class="btn btn-secondary" id="refreshData">刷新</button>
                         <div class="pagination-info" id="paginationInfo"></div>
+                        <div class="pagination-size-selector">
+                            <label for="pageSizeSelect" style="margin-right: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">每页:</label>
+                            <select id="pageSizeSelect" class="form-control" style="width: auto; padding: 0.4rem 0.6rem; font-size: 0.875rem;">
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="table-container" style="position: relative;">
                         <div class="loading-overlay" id="dataLoading" style="display: none;">

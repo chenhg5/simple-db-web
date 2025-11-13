@@ -286,11 +286,19 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
+    gap: 1rem;
 }
 
 .pagination-info {
     color: var(--text-secondary);
     font-size: 0.9rem;
+    flex: 1;
+}
+
+.pagination-size-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 /* 数据表格 */
