@@ -28,11 +28,11 @@ func (v *RequireLimitValidator) Validate(query string, queryType string) error {
 
 	// 转换为大写进行匹配
 	queryUpper := strings.ToUpper(strings.TrimSpace(query))
-	
+
 	// 检查是否包含LIMIT关键字（使用单词边界确保匹配完整单词）
 	limitPattern := regexp.MustCompile(`\bLIMIT\s+`)
 	if !limitPattern.MatchString(queryUpper) {
-		return fmt.Errorf("SELECT查询必须包含LIMIT子句以限制返回行数")
+		return fmt.Errorf(ErrCodeRequireLimit)
 	}
 
 	return nil
@@ -54,11 +54,11 @@ func (v *NoDropTableValidator) Name() string {
 // Validate 禁止DROP TABLE语句
 func (v *NoDropTableValidator) Validate(query string, queryType string) error {
 	queryUpper := strings.ToUpper(strings.TrimSpace(query))
-	
+
 	// 检查是否包含DROP TABLE
 	dropTablePattern := regexp.MustCompile(`\bDROP\s+TABLE\b`)
 	if dropTablePattern.MatchString(queryUpper) {
-		return fmt.Errorf("不允许执行DROP TABLE语句")
+		return fmt.Errorf(ErrCodeNoDropTable)
 	}
 
 	return nil
@@ -80,17 +80,17 @@ func (v *NoTruncateValidator) Name() string {
 // Validate 禁止TRUNCATE语句
 func (v *NoTruncateValidator) Validate(query string, queryType string) error {
 	queryUpper := strings.ToUpper(strings.TrimSpace(query))
-	
+
 	// 检查是否包含TRUNCATE TABLE
 	truncatePattern := regexp.MustCompile(`\bTRUNCATE\s+TABLE\b`)
 	if truncatePattern.MatchString(queryUpper) {
-		return fmt.Errorf("不允许执行TRUNCATE TABLE语句")
+		return fmt.Errorf(ErrCodeNoTruncateTable)
 	}
-	
+
 	// 也检查TRUNCATE（不带TABLE）
 	truncateOnlyPattern := regexp.MustCompile(`^\s*TRUNCATE\s+`)
 	if truncateOnlyPattern.MatchString(queryUpper) {
-		return fmt.Errorf("不允许执行TRUNCATE语句")
+		return fmt.Errorf(ErrCodeNoTruncate)
 	}
 
 	return nil
@@ -112,11 +112,11 @@ func (v *NoDropDatabaseValidator) Name() string {
 // Validate 禁止DROP DATABASE语句
 func (v *NoDropDatabaseValidator) Validate(query string, queryType string) error {
 	queryUpper := strings.ToUpper(strings.TrimSpace(query))
-	
+
 	// 检查是否包含DROP DATABASE
 	dropDbPattern := regexp.MustCompile(`\bDROP\s+DATABASE\b`)
 	if dropDbPattern.MatchString(queryUpper) {
-		return fmt.Errorf("不允许执行DROP DATABASE语句")
+		return fmt.Errorf(ErrCodeNoDropDatabase)
 	}
 
 	return nil
@@ -143,8 +143,7 @@ func (v *MaxQueryLengthValidator) Name() string {
 // Validate 校验查询长度
 func (v *MaxQueryLengthValidator) Validate(query string, queryType string) error {
 	if len(query) > v.MaxLength {
-		return fmt.Errorf("查询长度超过限制（最大%d字符）", v.MaxLength)
+		return fmt.Errorf("%s: %d", ErrCodeQueryTooLong, v.MaxLength)
 	}
 	return nil
 }
-

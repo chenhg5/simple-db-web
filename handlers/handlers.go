@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -80,6 +81,42 @@ type ProxyFactory func(config string) (Proxy, error)
 
 // DatabaseFactory 数据库工厂函数类型
 type DatabaseFactory func() database.Database
+
+// Logger 日志接口
+// 允许外部项目实现自定义的日志记录器
+type Logger interface {
+	// Debug 记录调试日志
+	Debug(ctx context.Context, format string, args ...interface{})
+	// Info 记录信息日志
+	Info(ctx context.Context, format string, args ...interface{})
+	// Warn 记录警告日志
+	Warn(ctx context.Context, format string, args ...interface{})
+	// Error 记录错误日志
+	Error(ctx context.Context, format string, args ...interface{})
+}
+
+// DefaultLogger 默认日志实现（使用标准库log包）
+type DefaultLogger struct{}
+
+// Debug 实现Logger接口
+func (l *DefaultLogger) Debug(ctx context.Context, format string, args ...interface{}) {
+	log.Printf("[DEBUG] "+format, args...)
+}
+
+// Info 实现Logger接口
+func (l *DefaultLogger) Info(ctx context.Context, format string, args ...interface{}) {
+	log.Printf("[INFO] "+format, args...)
+}
+
+// Warn 实现Logger接口
+func (l *DefaultLogger) Warn(ctx context.Context, format string, args ...interface{}) {
+	log.Printf("[WARN] "+format, args...)
+}
+
+// Error 实现Logger接口
+func (l *DefaultLogger) Error(ctx context.Context, format string, args ...interface{}) {
+	log.Printf("[ERROR] "+format, args...)
+}
 
 // SQLValidator SQL校验器接口
 // 允许外部项目实现自定义的SQL校验规则
@@ -181,6 +218,8 @@ type Server struct {
 	customScriptMutex    sync.RWMutex      // 保护customScript的读写锁
 	validators           []SQLValidator    // SQL校验器列表
 	validatorsMutex      sync.RWMutex      // 保护validators的读写锁
+	logger               Logger            // 日志记录器
+	loggerMutex          sync.RWMutex      // 保护logger的读写锁
 }
 
 // NewServer 创建新的服务器实例
@@ -211,6 +250,7 @@ func NewServer() (*Server, error) {
 		customProxies:        make(map[string]ProxyFactory),
 		builtinTypes:         builtinTypes,
 		validators:           make([]SQLValidator, 0),
+		logger:               &DefaultLogger{}, // 默认使用标准库log
 	}
 
 	// 注册默认的SSH代理
@@ -299,6 +339,20 @@ func (s *Server) validateSQL(query string, queryType string) error {
 
 	for _, validator := range s.validators {
 		if err := validator.Validate(query, queryType); err != nil {
+			// 如果错误消息是错误代码（以 "error." 开头），直接返回
+			// 否则包装错误消息
+			errMsg := err.Error()
+			if strings.HasPrefix(errMsg, "error.") {
+				// 检查是否包含参数（格式：error.xxx: param）
+				if strings.Contains(errMsg, ": ") {
+					parts := strings.SplitN(errMsg, ": ", 2)
+					if len(parts) == 2 {
+						// 返回错误代码和参数
+						return fmt.Errorf("%s: %s", parts[0], parts[1])
+					}
+				}
+				return err
+			}
 			return fmt.Errorf("[%s] %v", validator.Name(), err)
 		}
 	}
@@ -398,6 +452,16 @@ const (
 	ErrCodeClickHouseNoUpdate         = "error.clickHouseNoUpdate"
 	ErrCodeClickHouseNoDelete         = "error.clickHouseNoDelete"
 	ErrCodeConnectionNotExists        = "error.connectionNotExists"
+	ErrCodeCreateExcelSheetFailed     = "error.createExcelSheetFailed"
+	ErrCodeExportExcelFailed          = "error.exportExcelFailed"
+	ErrCodeOnlySelectQueryAllowed     = "error.onlySelectQueryAllowed"
+	ErrCodeQueryResultEmpty           = "error.queryResultEmpty"
+	ErrCodeRequireLimit               = "error.requireLimit"
+	ErrCodeNoDropTable                = "error.noDropTable"
+	ErrCodeNoTruncate                 = "error.noTruncate"
+	ErrCodeNoTruncateTable            = "error.noTruncateTable"
+	ErrCodeNoDropDatabase             = "error.noDropDatabase"
+	ErrCodeQueryTooLong               = "error.queryTooLong"
 )
 
 // writeJSONError 写入JSON格式的错误响应
@@ -413,15 +477,26 @@ func writeJSONError(w http.ResponseWriter, statusCode int, errorCode string, par
 
 	// 如果有参数，构建参数化消息（用于向后兼容）
 	if len(params) > 0 {
+		// 将error类型转换为字符串，避免JSON序列化为空对象
+		serializedParams := make([]interface{}, len(params))
+		for i, p := range params {
+			if err, ok := p.(error); ok {
+				// 如果是error类型，转换为字符串
+				serializedParams[i] = err.Error()
+			} else {
+				serializedParams[i] = p
+			}
+		}
+
 		// 构建参数化消息，用于日志或调试
 		message := errorCode
-		if len(params) == 1 {
-			message = fmt.Sprintf("%s: %v", errorCode, params[0])
-		} else if len(params) > 1 {
-			message = fmt.Sprintf("%s: %v", errorCode, params)
+		if len(serializedParams) == 1 {
+			message = fmt.Sprintf("%s: %v", errorCode, serializedParams[0])
+		} else if len(serializedParams) > 1 {
+			message = fmt.Sprintf("%s: %v", errorCode, serializedParams)
 		}
 		response["message"] = message
-		response["params"] = params
+		response["params"] = serializedParams
 	} else {
 		response["message"] = errorCode
 	}
@@ -482,7 +557,7 @@ func (s *Server) createDatabaseFromSessionData(data *SessionData) (database.Data
 			db = NewProxyDatabaseWrapper(db, proxy)
 		} else {
 			// 其他数据库类型暂不支持代理，记录警告并关闭代理
-			log.Printf("警告: 数据库类型 %s 暂不支持代理连接，将尝试直接连接", data.DbType)
+			s.getLogger().Warn(context.Background(), "Database type %s does not support proxy connection, attempting direct connection", data.DbType)
 			proxy.Close()
 			proxy = nil
 		}
@@ -620,12 +695,37 @@ func (s *Server) updateSession(connectionID string, updateFn func(*ConnectionSes
 	if session.sessionData != nil {
 		ttl := 24 * time.Hour
 		if err := s.sessionStorage.Set(connectionID, session.sessionData, ttl); err != nil {
-			log.Printf("警告: 更新会话到持久化存储失败: %v", err)
+			s.getLogger().Warn(context.Background(), "Failed to update session to persistent storage: %v", err)
 			// 不返回错误，因为内存中的会话已经更新
 		}
 	}
 
 	return nil
+}
+
+// SetLogger 设置自定义日志记录器
+// 允许外部项目使用自定义的日志库（如zap、logrus等）
+// 示例：
+//
+//	server.SetLogger(MyCustomLogger{})
+func (s *Server) SetLogger(logger Logger) {
+	s.loggerMutex.Lock()
+	defer s.loggerMutex.Unlock()
+	if logger == nil {
+		s.logger = &DefaultLogger{}
+	} else {
+		s.logger = logger
+	}
+}
+
+// getLogger 获取日志记录器（线程安全）
+func (s *Server) getLogger() Logger {
+	s.loggerMutex.RLock()
+	defer s.loggerMutex.RUnlock()
+	if s.logger == nil {
+		return &DefaultLogger{}
+	}
+	return s.logger
 }
 
 // SetCustomScript 设置自定义JavaScript脚本
@@ -768,7 +868,7 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 			db = NewProxyDatabaseWrapper(db, proxy)
 		} else {
 			// 其他数据库类型暂不支持代理，记录警告
-			log.Printf("警告: 数据库类型 %s 暂不支持代理连接，将尝试直接连接", info.Type)
+			s.getLogger().Warn(r.Context(), "Database type %s does not support proxy connection, attempting direct connection", info.Type)
 			proxy.Close()
 			proxy = nil
 		}
@@ -795,7 +895,7 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 	// 保存到持久化存储（默认TTL为24小时）
 	ttl := 24 * time.Hour
 	if err := s.sessionStorage.Set(connectionID, sessionData, ttl); err != nil {
-		log.Printf("警告: 保存会话到持久化存储失败: %v", err)
+		s.getLogger().Warn(r.Context(), "Failed to save session to persistent storage: %v", err)
 		// 继续执行，不中断连接流程
 	}
 
@@ -1524,7 +1624,7 @@ func (s *Server) Disconnect(w http.ResponseWriter, r *http.Request) {
 	// 从持久化存储删除
 	if exists {
 		if err := s.sessionStorage.Delete(connectionID); err != nil {
-			log.Printf("警告: 从持久化存储删除会话失败: %v", err)
+			s.getLogger().Warn(r.Context(), "Failed to delete session from persistent storage: %v", err)
 		}
 	}
 
@@ -1613,6 +1713,6 @@ func (s *Server) RegisterRoutes(router Router) {
 
 // Start 启动服务器
 func (s *Server) Start(addr string) error {
-	log.Printf("服务器启动在 %s", addr)
+	s.getLogger().Info(context.Background(), "Server starting on %s", addr)
 	return http.ListenAndServe(addr, nil)
 }

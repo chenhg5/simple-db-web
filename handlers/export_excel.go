@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,13 +14,13 @@ import (
 func (s *Server) ExportTableDataToExcel(w http.ResponseWriter, r *http.Request) {
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
 	tableName := r.URL.Query().Get("table")
 	if tableName == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少表名参数")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingTableName)
 		return
 	}
 
@@ -37,21 +36,21 @@ func (s *Server) ExportTableDataToExcel(w http.ResponseWriter, r *http.Request) 
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
 	// 获取数据
 	data, _, err := session.db.GetTableData(tableName, page, pageSize)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取数据失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetTableDataFailed, err)
 		return
 	}
 
 	// 获取列信息
 	columns, err := session.db.GetTableColumns(tableName)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("获取列信息失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetTableColumnsFailed, err)
 		return
 	}
 
@@ -59,7 +58,7 @@ func (s *Server) ExportTableDataToExcel(w http.ResponseWriter, r *http.Request) 
 	f := excelize.NewFile()
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Printf("关闭Excel文件失败: %v", err)
+			s.getLogger().Error(r.Context(), "Failed to close Excel file: %v", err)
 		}
 	}()
 
@@ -71,7 +70,7 @@ func (s *Server) ExportTableDataToExcel(w http.ResponseWriter, r *http.Request) 
 	}
 	index, err := f.NewSheet(sheetName)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("创建Excel工作表失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeCreateExcelSheetFailed, err)
 		return
 	}
 	f.SetActiveSheet(index)
@@ -119,8 +118,8 @@ func (s *Server) ExportTableDataToExcel(w http.ResponseWriter, r *http.Request) 
 
 	// 写入响应
 	if err := f.Write(w); err != nil {
-		log.Printf("写入Excel文件失败: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("导出Excel失败: %v", err))
+		s.getLogger().Error(r.Context(), "Failed to write Excel file: %v", err)
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeExportExcelFailed, err)
 		return
 	}
 }
@@ -128,13 +127,13 @@ func (s *Server) ExportTableDataToExcel(w http.ResponseWriter, r *http.Request) 
 // ExportQueryResultsToExcel 导出查询结果为Excel
 func (s *Server) ExportQueryResultsToExcel(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSONError(w, http.StatusMethodNotAllowed, "方法不允许")
+		writeJSONError(w, http.StatusMethodNotAllowed, ErrCodeMethodNotAllowed)
 		return
 	}
 
 	connectionID := getConnectionID(r)
 	if connectionID == "" {
-		writeJSONError(w, http.StatusBadRequest, "缺少连接ID")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeMissingConnectionID)
 		return
 	}
 
@@ -142,37 +141,37 @@ func (s *Server) ExportQueryResultsToExcel(w http.ResponseWriter, r *http.Reques
 		Query string `json:"query"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("解析请求失败: %v", err))
+		writeJSONError(w, http.StatusBadRequest, ErrCodeParseRequestFailed, err)
 		return
 	}
 
 	if req.Query == "" {
-		writeJSONError(w, http.StatusBadRequest, "SQL查询不能为空")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeEmptySQLQuery)
 		return
 	}
 
 	session, err := s.getSession(connectionID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, ErrCodeConnectionNotExists, err)
 		return
 	}
 
 	// 只支持SELECT查询
 	queryUpper := fmt.Sprintf("%.6s", req.Query)
 	if queryUpper != "SELECT" && queryUpper != "select" {
-		writeJSONError(w, http.StatusBadRequest, "只支持导出SELECT查询结果")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeOnlySelectQueryAllowed)
 		return
 	}
 
 	// 执行查询
 	results, err := session.db.ExecuteQuery(req.Query)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("执行查询失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeExecuteQueryFailed, err)
 		return
 	}
 
 	if len(results) == 0 {
-		writeJSONError(w, http.StatusBadRequest, "查询结果为空，无法导出")
+		writeJSONError(w, http.StatusBadRequest, ErrCodeQueryResultEmpty)
 		return
 	}
 
@@ -180,7 +179,7 @@ func (s *Server) ExportQueryResultsToExcel(w http.ResponseWriter, r *http.Reques
 	f := excelize.NewFile()
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Printf("关闭Excel文件失败: %v", err)
+			s.getLogger().Error(r.Context(), "Failed to close Excel file: %v", err)
 		}
 	}()
 
@@ -192,7 +191,7 @@ func (s *Server) ExportQueryResultsToExcel(w http.ResponseWriter, r *http.Reques
 	}
 	index, err := f.NewSheet(sheetName)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("创建Excel工作表失败: %v", err))
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeCreateExcelSheetFailed, err)
 		return
 	}
 	f.SetActiveSheet(index)
@@ -246,8 +245,8 @@ func (s *Server) ExportQueryResultsToExcel(w http.ResponseWriter, r *http.Reques
 
 	// 写入响应
 	if err := f.Write(w); err != nil {
-		log.Printf("写入Excel文件失败: %v", err)
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("导出Excel失败: %v", err))
+		s.getLogger().Error(r.Context(), "Failed to write Excel file: %v", err)
+		writeJSONError(w, http.StatusInternalServerError, ErrCodeExportExcelFailed, err)
 		return
 	}
 }

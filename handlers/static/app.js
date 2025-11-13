@@ -155,6 +155,12 @@ const i18n = {
             'error.getTableDataFailed': 'Failed to get table data',
             'error.getPageIDFailed': 'Failed to get page ID',
             'error.sqlValidationFailed': 'SQL validation failed',
+            'error.requireLimit': 'SELECT query must include LIMIT clause to limit the number of rows returned',
+            'error.noDropTable': 'DROP TABLE statements are not allowed',
+            'error.noTruncate': 'TRUNCATE statements are not allowed',
+            'error.noTruncateTable': 'TRUNCATE TABLE statements are not allowed',
+            'error.noDropDatabase': 'DROP DATABASE statements are not allowed',
+            'error.queryTooLong': 'Query length exceeds the limit (max {maxLength} characters)',
             'error.executeQueryFailed': 'Failed to execute query',
             'error.executeUpdateFailed': 'Failed to execute update',
             'error.executeDeleteFailed': 'Failed to execute delete',
@@ -336,6 +342,12 @@ const i18n = {
             'error.getTableDataFailed': '获取数据失败',
             'error.getPageIDFailed': '获取页码ID失败',
             'error.sqlValidationFailed': 'SQL校验失败',
+            'error.requireLimit': 'SELECT查询必须包含LIMIT子句以限制返回行数',
+            'error.noDropTable': '不允许执行DROP TABLE语句',
+            'error.noTruncate': '不允许执行TRUNCATE语句',
+            'error.noTruncateTable': '不允许执行TRUNCATE TABLE语句',
+            'error.noDropDatabase': '不允许执行DROP DATABASE语句',
+            'error.queryTooLong': '查询长度超过限制（最大{maxLength}字符）',
             'error.executeQueryFailed': '执行查询失败',
             'error.executeUpdateFailed': '执行更新失败',
             'error.executeDeleteFailed': '执行删除失败',
@@ -517,6 +529,12 @@ const i18n = {
             'error.getTableDataFailed': '取得資料失敗',
             'error.getPageIDFailed': '取得頁碼ID失敗',
             'error.sqlValidationFailed': 'SQL校驗失敗',
+            'error.requireLimit': 'SELECT查詢必須包含LIMIT子句以限制返回行數',
+            'error.noDropTable': '不允許執行DROP TABLE語句',
+            'error.noTruncate': '不允許執行TRUNCATE語句',
+            'error.noTruncateTable': '不允許執行TRUNCATE TABLE語句',
+            'error.noDropDatabase': '不允許執行DROP DATABASE語句',
+            'error.queryTooLong': '查詢長度超過限制（最大{maxLength}字元）',
             'error.executeQueryFailed': '執行查詢失敗',
             'error.executeUpdateFailed': '執行更新失敗',
             'error.executeDeleteFailed': '執行刪除失敗',
@@ -598,15 +616,100 @@ function translateApiError(data) {
         if (translated !== data.errorCode) {
             // 如果有参数，尝试格式化消息
             if (data.params && data.params.length > 0) {
-                // 对于有参数的错误，可以显示翻译后的消息和参数
-                const paramStr = data.params.map(p => String(p)).join(', ');
+                // 对于有参数的错误，格式化参数
+                const paramStr = data.params.map(p => {
+                    // 处理不同类型的参数
+                    if (p === null || p === undefined) {
+                        return '';
+                    }
+                    // 如果是字符串，检查是否是错误代码或包含错误代码
+                    if (typeof p === 'string') {
+                        // 如果字符串是错误代码（以 "error." 开头），尝试翻译
+                        if (p.startsWith('error.')) {
+                            const translatedCode = t(p);
+                            if (translatedCode !== p) {
+                                return translatedCode;
+                            }
+                        }
+                        // 如果字符串包含错误代码（格式：error.xxx: param 或 [Validator] error.xxx: param）
+                        const errorCodeMatch = p.match(/error\.\w+(?::\s*(\d+))?/);
+                        if (errorCodeMatch) {
+                            const errorCode = errorCodeMatch[0].split(':')[0].trim();
+                            const param = errorCodeMatch[1];
+                            const translatedCode = t(errorCode);
+                            if (translatedCode !== errorCode) {
+                                // 如果有参数（如 maxLength），使用参数化翻译
+                                if (param) {
+                                    return t(errorCode, { maxLength: param });
+                                }
+                                return translatedCode;
+                            }
+                        }
+                        return p;
+                    }
+                    // 如果是Error对象，提取message
+                    if (p instanceof Error) {
+                        return p.message || String(p);
+                    }
+                    // 如果是普通对象，尝试提取有意义的字段
+                    if (typeof p === 'object') {
+                        // 如果是空对象，跳过（可能是Go的error序列化失败的情况）
+                        const keys = Object.keys(p);
+                        if (keys.length === 0) {
+                            return '';
+                        }
+                        // 如果有message字段，优先使用
+                        if (p.message) {
+                            return String(p.message);
+                        }
+                        // 如果有Error字段（Go的error类型序列化后可能有Error字段）
+                        if (p.Error) {
+                            return String(p.Error);
+                        }
+                        // 如果有msg字段
+                        if (p.msg) {
+                            return String(p.msg);
+                        }
+                        // 如果对象只有一个字段且是字符串，使用该字段
+                        if (keys.length === 1 && typeof p[keys[0]] === 'string') {
+                            return String(p[keys[0]]);
+                        }
+                        // 否则尝试JSON序列化（但限制长度）
+                        try {
+                            const jsonStr = JSON.stringify(p);
+                            return jsonStr.length > 200 ? jsonStr.substring(0, 200) + '...' : jsonStr;
+                        } catch (e) {
+                            return String(p);
+                        }
+                    }
+                    // 其他类型正常转换
+                    return String(p);
+                }).filter(s => s !== '').join(', ');
                 return `${translated}${paramStr ? ': ' + paramStr : ''}`;
             }
             return translated;
         }
     }
-    // 如果没有errorCode或翻译失败，使用message字段（向后兼容）
-    return data && data.message ? data.message : '';
+    // 如果没有errorCode或翻译失败，尝试从message中提取错误代码
+    if (data && data.message) {
+        const msg = String(data.message);
+        // 检查消息中是否包含错误代码（格式：[Validator] error.xxx 或 error.xxx: param）
+        const errorCodeMatch = msg.match(/error\.\w+(?::\s*(\d+))?/);
+        if (errorCodeMatch) {
+            const errorCode = errorCodeMatch[0].split(':')[0].trim();
+            const param = errorCodeMatch[1];
+            const translatedCode = t(errorCode);
+            if (translatedCode !== errorCode) {
+                // 如果有参数（如 maxLength），使用参数化翻译
+                if (param) {
+                    return t(errorCode, { maxLength: param });
+                }
+                return translatedCode;
+            }
+        }
+        return msg;
+    }
+    return '';
 }
 
 // 导出到全局
@@ -869,7 +972,7 @@ const languageSelect = document.getElementById('languageSelect');
 
 // 更新所有带有 data-i18n 属性的元素
 function updateI18nElements() {
-    // 更新 textContent
+    // 更新 textContent（包括 option 元素）
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (key && !el.hasAttribute('data-i18n-ignore')) {
@@ -924,6 +1027,13 @@ window.addEventListener('languageChanged', () => {
     }
     if (exportQueryBtn && exportQueryBtn.style.display !== 'none') {
         exportQueryBtn.textContent = t('query.exportExcel');
+    }
+    // 更新数据库选择器的默认选项
+    if (databaseSelect && databaseSelect.firstElementChild && databaseSelect.firstElementChild.hasAttribute('data-i18n')) {
+        const firstOption = databaseSelect.firstElementChild;
+        if (firstOption.value === '') {
+            firstOption.textContent = t('connection.selectDatabase');
+        }
     }
 });
 
@@ -1326,7 +1436,7 @@ async function connectWithSavedConnection(savedConn) {
             showNotification(translateApiError(data) || t('connection.failed'), 'error');
         }
     } catch (error) {
-        showNotification('连接失败: ' + error.message, 'error');
+        showNotification(t('connection.failed') + ': ' + error.message, 'error');
     } finally {
         setButtonLoading(connectBtn, false);
     }
@@ -1833,7 +1943,7 @@ async function handleConnect() {
     const dbType = document.getElementById('dbType') ? document.getElementById('dbType').value : '';
     
     if (!dbType) {
-        showNotification('请选择数据库类型', 'error');
+        showNotification(t('error.selectDbType'), 'error');
         return;
     }
     
@@ -1993,12 +2103,12 @@ async function handleConnect() {
                 databasePanel.style.display = 'block';
                 await loadDatabases(data.databases || []);
             }
-            showNotification('连接成功', 'success');
+            showNotification(t('connection.success'), 'success');
         } else {
             showNotification(translateApiError(data) || t('connection.failed'), 'error');
         }
     } catch (error) {
-        showNotification('连接失败: ' + error.message, 'error');
+        showNotification(t('connection.failed') + ': ' + error.message, 'error');
     } finally {
         if (connectBtn) {
         setButtonLoading(connectBtn, false);
@@ -2225,7 +2335,7 @@ function updateConnectionInfo(info) {
 
 // 加载数据库列表
 async function loadDatabases(databases) {
-    databaseSelect.innerHTML = '<option value="">请选择数据库...</option>';
+    databaseSelect.innerHTML = `<option value="" data-i18n="connection.selectDatabase">${t('connection.selectDatabase')}</option>`;
     if (databases && databases.length > 0) {
         databases.forEach(db => {
             const option = document.createElement('option');
