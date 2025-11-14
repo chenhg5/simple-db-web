@@ -1,3 +1,5 @@
+[[中文介绍]](https://github.com/chenhg5/simple-db-web/blob/main/README_CN.md)  |  [[Join Discord]](https://discord.gg/B3FwBSQq)
+
 # SimpleDBWeb - Database Management Tool
 
 A modern database management web tool implemented with Go and Go Template, supporting multiple database types.

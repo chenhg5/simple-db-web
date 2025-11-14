@@ -1235,6 +1235,23 @@ function updateI18nElements() {
             el.value = t(key);
         }
     });
+    
+    // 更新 GitHub 链接
+    updateGitHubLink();
+}
+
+// 更新 GitHub 链接地址（根据当前语言）
+function updateGitHubLink() {
+    const githubLink = document.getElementById('githubLink');
+    if (githubLink) {
+        // 判断是否为中文（简体或繁体）
+        const isChinese = i18n.currentLang === 'zh-CN' || i18n.currentLang === 'zh-TW';
+        if (isChinese) {
+            githubLink.href = 'https://github.com/chenhg5/simple-db-web/blob/main/README_CN.md';
+        } else {
+            githubLink.href = 'https://github.com/chenhg5/simple-db-web';
+        }
+    }
 }
 
 // 语言切换事件
@@ -1278,6 +1295,8 @@ window.addEventListener('languageChanged', () => {
             firstOption.textContent = t('connection.selectDatabase');
         }
     }
+    // 更新 GitHub 链接
+    updateGitHubLink();
 });
 
 // 密码显示/隐藏切换
