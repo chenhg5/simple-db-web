@@ -45,6 +45,19 @@ func main() {
 		return database.NewBaseMysqlBasedDB("kingbase")
 	})
 
+	presetConns := []database.ConnectionInfo{
+        {
+            Name:     "测试环境PostgreSQL",
+            Type:     "postgresql",
+            Host:     "test-db.example.com",
+            Port:     "5432",
+            User:     "testuser",
+            Password: "testpass",
+            Database: "testdb",
+        },
+    }
+    server.SetPresetConnections(presetConns)
+
 	// 示例2：添加另一个自定义数据库类型
 	// 注意：需要实现 database.Database 接口的所有方法
 	server.AddDatabase("my_custom_db", func() database.Database {

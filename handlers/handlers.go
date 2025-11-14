@@ -222,6 +222,8 @@ type Server struct {
 	validatorsMutex      sync.RWMutex      // 保护validators的读写锁
 	logger               Logger            // 日志记录器
 	loggerMutex          sync.RWMutex      // 保护logger的读写锁
+	presetConnections    []database.ConnectionInfo // 预设连接列表
+	presetConnectionsMutex sync.RWMutex    // 保护presetConnections的读写锁
 }
 
 // NewServer 创建新的服务器实例
@@ -257,6 +259,7 @@ func NewServer() (*Server, error) {
 		builtinTypes:         builtinTypes,
 		validators:           make([]SQLValidator, 0),
 		logger:               &DefaultLogger{}, // 默认使用标准库log
+		presetConnections:    make([]database.ConnectionInfo, 0),
 	}
 
 	// 注册默认的SSH代理
@@ -785,6 +788,72 @@ func (s *Server) GetCustomScript() string {
 	s.customScriptMutex.RLock()
 	defer s.customScriptMutex.RUnlock()
 	return s.customScript
+}
+
+// SetPresetConnections 设置预设连接列表
+// 允许外部项目在启动时预设一些已保存的连接
+// 这些连接会通过 API 提供给前端，前端会自动保存到本地并统一显示
+// 示例：
+//
+//	presetConns := []database.ConnectionInfo{
+//	    {
+//	        Type:     "mysql",
+//	        Host:     "localhost",
+//	        Port:     "3306",
+//	        User:     "root",
+//	        Password: "password",
+//	        Database: "testdb",
+//	    },
+//	}
+//	server.SetPresetConnections(presetConns)
+func (s *Server) SetPresetConnections(connections []database.ConnectionInfo) {
+	s.presetConnectionsMutex.Lock()
+	defer s.presetConnectionsMutex.Unlock()
+	// 创建副本，避免外部修改
+	s.presetConnections = make([]database.ConnectionInfo, len(connections))
+	for i, conn := range connections {
+		s.presetConnections[i] = conn
+	}
+}
+
+// GetPresetConnections 获取预设连接列表（线程安全）
+func (s *Server) GetPresetConnections() []database.ConnectionInfo {
+	s.presetConnectionsMutex.RLock()
+	defer s.presetConnectionsMutex.RUnlock()
+	// 返回副本，避免外部修改
+	result := make([]database.ConnectionInfo, len(s.presetConnections))
+	for i, conn := range s.presetConnections {
+		result[i] = conn
+	}
+	return result
+}
+
+// GetPresetConnectionsAPI 获取预设连接列表的API端点
+func (s *Server) GetPresetConnectionsAPI(w http.ResponseWriter, r *http.Request) {
+	presetConns := s.GetPresetConnections()
+	
+	// 转换为前端需要的格式（与保存的连接格式一致）
+	connections := make([]map[string]interface{}, 0, len(presetConns))
+	for _, conn := range presetConns {
+		connMap := map[string]interface{}{
+			"type":     conn.Type,
+			"name":     conn.Name,
+			"host":     conn.Host,
+			"port":     conn.Port,
+			"user":     conn.User,
+			"password": conn.Password, // 注意：密码需要前端加密后保存
+			"database": conn.Database,
+			"dsn":      conn.DSN,
+			"proxy":    conn.Proxy,
+			"preset":   true, // 标记为预设连接
+		}
+		connections = append(connections, connMap)
+	}
+	
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":    true,
+		"connections": connections,
+	})
 }
 
 // Home 首页
@@ -1800,6 +1869,9 @@ func (s *Server) RegisterRoutes(router Router) {
 
 	// 获取数据库类型列表
 	router.HandleFunc("/api/database/types", s.GetDatabaseTypes)
+	
+	// 获取预设连接列表
+	router.HandleFunc("/api/preset-connections", s.GetPresetConnectionsAPI)
 }
 
 // Start 启动服务器

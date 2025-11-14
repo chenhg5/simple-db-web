@@ -1563,7 +1563,7 @@ function loadSavedConnections() {
     if (saved.length === 0) {
         const emptyMsg = document.createElement('div');
         emptyMsg.style.cssText = 'padding: 1rem; color: var(--text-secondary); text-align: center; font-size: 0.875rem;';
-        emptyMsg.textContent = '暂无保存的连接';
+        emptyMsg.textContent = t('connection.noSaved');
         savedConnectionsList.appendChild(emptyMsg);
         return;
     }
@@ -1590,6 +1590,11 @@ function loadSavedConnections() {
         } else {
             displayText = `${conn.type || 'mysql'}://${conn.user || 'unknown'}@${conn.host || 'unknown'}:${conn.port || '3306'}`;
             }
+        }
+        
+        // 如果是预设连接，添加标记
+        if (conn.preset) {
+            displayText += ' [预设]';
         }
         
         // 创建按钮容器
@@ -1958,6 +1963,93 @@ loadSavedConnections();
 
 // 页面加载时加载数据库类型列表
 loadDatabaseTypes();
+
+// 加载预设连接并合并到本地保存的连接
+async function loadPresetConnections() {
+    try {
+        const response = await apiRequest(`${API_BASE}/preset-connections`);
+        const data = await response.json();
+        
+        if (data.success && data.connections && data.connections.length > 0) {
+            const saved = getSavedConnections();
+            const presetConnections = data.connections;
+            
+            // 合并预设连接到本地保存的连接（去重）
+            presetConnections.forEach(presetConn => {
+                const key = getConnectionKey(presetConn);
+                // 检查是否已存在（通过连接key去重）
+                const existingIndex = saved.findIndex(conn => getConnectionKey(conn) === key);
+                
+                if (existingIndex < 0) {
+                    // 不存在，添加预设连接
+                    // 注意：预设连接的密码需要加密后保存
+                    const connectionToSave = {
+                        ...presetConn,
+                        savedAt: new Date().toISOString(),
+                        preset: true // 标记为预设连接
+                    };
+                    
+                    // 如果使用表单模式且有密码，加密密码
+                    if (!connectionToSave.dsn && connectionToSave.password) {
+                        connectionToSave.password = encryptPassword(connectionToSave.password);
+                        connectionToSave.passwordEncrypted = true;
+                    }
+                    
+                    // 如果使用代理，加密代理密码和私钥
+                    if (connectionToSave.proxy) {
+                        const proxyConfig = { ...connectionToSave.proxy };
+                        
+                        // 加密代理密码
+                        if (proxyConfig.password) {
+                            proxyConfig.password = encryptPassword(proxyConfig.password);
+                            proxyConfig.passwordEncrypted = true;
+                        }
+                        
+                        // 处理私钥（如果存在）
+                        if (proxyConfig.config) {
+                            try {
+                                const config = JSON.parse(proxyConfig.config);
+                                if (config.key_data) {
+                                    // 如果私钥未加密，需要加密
+                                    if (!config.key_data.startsWith('data:')) {
+                                        // 假设这是未加密的私钥，需要加密
+                                        config.key_data = encryptPassword(config.key_data);
+                                    }
+                                    proxyConfig.config = JSON.stringify({
+                                        key_data: config.key_data
+                                    });
+                                }
+                            } catch (e) {
+                                console.warn('解析代理配置失败:', e);
+                            }
+                        }
+                        
+                        connectionToSave.proxy = proxyConfig;
+                    }
+                    
+                    saved.push(connectionToSave);
+                } else {
+                    // 已存在，但如果是预设连接，更新预设标记（保留用户可能修改的内容）
+                    if (!saved[existingIndex].preset) {
+                        saved[existingIndex].preset = true;
+                    }
+                }
+            });
+            
+            // 保存到 localStorage
+            localStorage.setItem('savedConnections', JSON.stringify(saved));
+            
+            // 重新加载显示
+            loadSavedConnections();
+        }
+    } catch (error) {
+        console.warn('加载预设连接失败:', error);
+        // 不显示错误提示，因为预设连接是可选的
+    }
+}
+
+// 页面加载时加载预设连接
+loadPresetConnections();
 
 // 页面加载时尝试恢复连接
 async function restoreConnection() {
