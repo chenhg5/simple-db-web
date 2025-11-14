@@ -1691,7 +1691,8 @@ async function connectWithSavedConnection(savedConn) {
         connectionInfo.host = savedConn.host || '';
         connectionInfo.port = savedConn.port || '3306';
         connectionInfo.user = savedConn.user || '';
-        connectionInfo.password = password;
+        // 加密密码后发送（后端会解密）
+        connectionInfo.password = password ? encryptPassword(password) : '';
         connectionInfo.database = '';
         
         dsnGroup.style.display = 'none';
@@ -1982,39 +1983,29 @@ async function loadPresetConnections() {
                 
                 if (existingIndex < 0) {
                     // 不存在，添加预设连接
-                    // 注意：预设连接的密码需要加密后保存
+                    // 注意：后端返回的密码已经是加密的，直接保存即可
                     const connectionToSave = {
                         ...presetConn,
                         savedAt: new Date().toISOString(),
-                        preset: true // 标记为预设连接
+                        preset: true, // 标记为预设连接
+                        passwordEncrypted: true // 标记密码已加密
                     };
                     
-                    // 如果使用表单模式且有密码，加密密码
-                    if (!connectionToSave.dsn && connectionToSave.password) {
-                        connectionToSave.password = encryptPassword(connectionToSave.password);
-                        connectionToSave.passwordEncrypted = true;
-                    }
-                    
-                    // 如果使用代理，加密代理密码和私钥
+                    // 如果使用代理，确保代理密码和私钥已加密
                     if (connectionToSave.proxy) {
                         const proxyConfig = { ...connectionToSave.proxy };
                         
-                        // 加密代理密码
+                        // 后端返回的代理密码已经是加密的，标记为已加密
                         if (proxyConfig.password) {
-                            proxyConfig.password = encryptPassword(proxyConfig.password);
                             proxyConfig.passwordEncrypted = true;
                         }
                         
-                        // 处理私钥（如果存在）
+                        // 处理私钥（后端返回的私钥已经是加密的）
                         if (proxyConfig.config) {
                             try {
                                 const config = JSON.parse(proxyConfig.config);
                                 if (config.key_data) {
-                                    // 如果私钥未加密，需要加密
-                                    if (!config.key_data.startsWith('data:')) {
-                                        // 假设这是未加密的私钥，需要加密
-                                        config.key_data = encryptPassword(config.key_data);
-                                    }
+                                    // 后端返回的私钥已经是加密的，直接保存
                                     proxyConfig.config = JSON.stringify({
                                         key_data: config.key_data
                                     });

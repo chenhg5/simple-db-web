@@ -405,6 +405,20 @@ func (s *Server) GetDatabaseTypes(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// encryptPassword 加密密码（Base64编码，与前端encryptPassword对应）
+// 用于在API返回时加密敏感信息（如预设连接的密码）
+// 注意：前端的 encryptPassword 使用 btoa(unescape(encodeURIComponent(password)))
+// 为了兼容，后端也使用相同的逻辑：先进行 UTF-8 编码，再进行 Base64 编码
+func encryptPassword(password string) string {
+	if password == "" {
+		return ""
+	}
+	// Base64编码（与前端 btoa(unescape(encodeURIComponent(password))) 对应）
+	// Go 的字符串默认是 UTF-8，直接 Base64 编码即可
+	// 前端的 btoa(unescape(encodeURIComponent(password))) 实际上也是对 UTF-8 字符串进行 Base64 编码
+	return base64.StdEncoding.EncodeToString([]byte(password))
+}
+
 // decryptPassword 解密密码（Base64解码，与前端encryptPassword对应）
 func decryptPassword(encrypted string) (string, error) {
 	if encrypted == "" {
@@ -841,12 +855,46 @@ func (s *Server) GetPresetConnectionsAPI(w http.ResponseWriter, r *http.Request)
 			"host":     conn.Host,
 			"port":     conn.Port,
 			"user":     conn.User,
-			"password": conn.Password, // 注意：密码需要前端加密后保存
+			"password": encryptPassword(conn.Password), // 加密密码后再返回
 			"database": conn.Database,
 			"dsn":      conn.DSN,
-			"proxy":    conn.Proxy,
 			"preset":   true, // 标记为预设连接
 		}
+		
+		// 处理代理配置（如果存在），加密代理密码和私钥
+		if conn.Proxy != nil {
+			proxyMap := map[string]interface{}{
+				"type": conn.Proxy.Type,
+				"host": conn.Proxy.Host,
+				"port": conn.Proxy.Port,
+				"user": conn.Proxy.User,
+			}
+			
+			// 加密代理密码
+			if conn.Proxy.Password != "" {
+				proxyMap["password"] = encryptPassword(conn.Proxy.Password)
+			}
+			
+			// 处理私钥（如果存在）
+			if conn.Proxy.Config != "" {
+				var config map[string]interface{}
+				if err := json.Unmarshal([]byte(conn.Proxy.Config), &config); err == nil {
+					if keyData, ok := config["key_data"].(string); ok && keyData != "" {
+						// 加密私钥
+						config["key_data"] = encryptPassword(keyData)
+						configJSON, _ := json.Marshal(config)
+						proxyMap["config"] = string(configJSON)
+					} else {
+						proxyMap["config"] = conn.Proxy.Config
+					}
+				} else {
+					proxyMap["config"] = conn.Proxy.Config
+				}
+			}
+			
+			connMap["proxy"] = proxyMap
+		}
+		
 		connections = append(connections, connMap)
 	}
 	
