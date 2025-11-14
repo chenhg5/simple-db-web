@@ -25,7 +25,7 @@ func (h *H2) Connect(dsn string) error {
 	// H2 在 Go 中直接支持较困难，因为它是 Java 数据库
 	// 这里提供一个占位实现
 	// 实际使用时可能需要通过 JDBC 桥接（如 go-java）或使用其他方式
-	return fmt.Errorf("H2 数据库在 Go 中需要 JDBC 桥接支持，当前版本暂不支持直接连接")
+	return fmt.Errorf("H2 database requires JDBC bridge support in Go, current version does not support direct connection")
 }
 
 // Close 关闭连接
@@ -39,12 +39,12 @@ func (h *H2) Close() error {
 // GetTables 获取所有表名
 func (h *H2) GetTables() ([]string, error) {
 	if h.db == nil {
-		return nil, fmt.Errorf("数据库未连接")
+		return nil, fmt.Errorf("database not connected")
 	}
 	query := `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'PUBLIC' ORDER BY TABLE_NAME`
 	rows, err := h.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询表列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query table list: %w", err)
 	}
 	defer rows.Close()
 
@@ -62,7 +62,7 @@ func (h *H2) GetTables() ([]string, error) {
 // GetTableSchema 获取表结构
 func (h *H2) GetTableSchema(tableName string) (string, error) {
 	if h.db == nil {
-		return "", fmt.Errorf("数据库未连接")
+		return "", fmt.Errorf("database not connected")
 	}
 	query := fmt.Sprintf(`
 		SELECT 'CREATE TABLE ' || TABLE_NAME || ' (' ||
@@ -91,12 +91,12 @@ func (h *H2) GetTableSchema(tableName string) (string, error) {
 
 	rows, err := h.db.Query(query)
 	if err != nil {
-		return "", fmt.Errorf("查询表结构失败: %w", err)
+		return "", fmt.Errorf("failed to query table schema: %w", err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		return "", fmt.Errorf("表 %s 不存在", tableName)
+		return "", fmt.Errorf("table %s does not exist", tableName)
 	}
 
 	var createTable string
@@ -110,7 +110,7 @@ func (h *H2) GetTableSchema(tableName string) (string, error) {
 // GetTableColumns 获取表的列信息
 func (h *H2) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 	if h.db == nil {
-		return nil, fmt.Errorf("数据库未连接")
+		return nil, fmt.Errorf("database not connected")
 	}
 	query := fmt.Sprintf(`
 		SELECT 
@@ -140,7 +140,7 @@ func (h *H2) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 
 	rows, err := h.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询列信息失败: %w", err)
+		return nil, fmt.Errorf("failed to query column information: %w", err)
 	}
 	defer rows.Close()
 
@@ -167,11 +167,11 @@ func (h *H2) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 // ExecuteQuery 执行查询
 func (h *H2) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 	if h.db == nil {
-		return nil, fmt.Errorf("数据库未连接")
+		return nil, fmt.Errorf("database not connected")
 	}
 	rows, err := h.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("执行查询失败: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 
@@ -214,7 +214,7 @@ func (h *H2) ExecuteUpdate(query string) (int64, error) {
 	}
 	result, err := h.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行更新失败: %w", err)
+		return 0, fmt.Errorf("failed to execute update: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -226,7 +226,7 @@ func (h *H2) ExecuteDelete(query string) (int64, error) {
 	}
 	result, err := h.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行删除失败: %w", err)
+		return 0, fmt.Errorf("failed to execute delete: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -238,7 +238,7 @@ func (h *H2) ExecuteInsert(query string) (int64, error) {
 	}
 	result, err := h.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行插入失败: %w", err)
+		return 0, fmt.Errorf("failed to execute insert: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -252,7 +252,7 @@ func (h *H2) GetTableData(tableName string, page, pageSize int) ([]map[string]in
 	var total int64
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", strings.ToUpper(tableName))
 	if err := h.db.QueryRow(countQuery).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("查询总数失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query total count: %w", err)
 	}
 
 	// 获取分页数据
@@ -261,7 +261,7 @@ func (h *H2) GetTableData(tableName string, page, pageSize int) ([]map[string]in
 
 	rows, err := h.db.Query(query)
 	if err != nil {
-		return nil, 0, fmt.Errorf("查询数据失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
 	defer rows.Close()
 
@@ -318,7 +318,7 @@ func (h *H2) GetTableDataByID(tableName string, primaryKey string, lastId interf
 
 	if direction == "prev" {
 		if lastId == nil {
-			return nil, 0, nil, fmt.Errorf("上一页需要提供lastId")
+			return nil, 0, nil, fmt.Errorf("lastId is required for previous page")
 		}
 		query = fmt.Sprintf(`
 			SELECT * FROM (
@@ -399,7 +399,7 @@ func (h *H2) GetTableDataByID(tableName string, primaryKey string, lastId interf
 // GetPageIdByPageNumber 根据页码计算该页的起始ID（用于页码跳转）
 func (h *H2) GetPageIdByPageNumber(tableName string, primaryKey string, page, pageSize int) (interface{}, error) {
 	if h.db == nil {
-		return nil, fmt.Errorf("数据库未连接")
+		return nil, fmt.Errorf("database not connected")
 	}
 	if page <= 1 {
 		return nil, nil
@@ -418,7 +418,7 @@ func (h *H2) GetPageIdByPageNumber(tableName string, primaryKey string, page, pa
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("查询页码ID失败: %w", err)
+		return nil, fmt.Errorf("failed to query page ID: %w", err)
 	}
 
 	return id, nil
@@ -427,7 +427,7 @@ func (h *H2) GetPageIdByPageNumber(tableName string, primaryKey string, page, pa
 // GetDatabases 获取所有数据库名称（H2 通常只有一个数据库）
 func (h *H2) GetDatabases() ([]string, error) {
 	if h.db == nil {
-		return nil, fmt.Errorf("数据库未连接")
+		return nil, fmt.Errorf("database not connected")
 	}
 	// H2 通常只有一个数据库，返回空列表或当前数据库名
 	return []string{}, nil
@@ -435,7 +435,7 @@ func (h *H2) GetDatabases() ([]string, error) {
 
 // SwitchDatabase 切换当前使用的数据库（H2 不支持多数据库）
 func (h *H2) SwitchDatabase(databaseName string) error {
-	return fmt.Errorf("H2不支持切换数据库")
+	return fmt.Errorf("H2 does not support switching databases")
 }
 
 // BuildH2DSN 根据连接信息构建H2 DSN

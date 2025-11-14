@@ -25,11 +25,11 @@ func NewMySQL() *MySQL {
 func (m *MySQL) Connect(dsn string) error {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		return fmt.Errorf("打开数据库连接失败: %w", err)
+		return fmt.Errorf("failed to open database connection: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
-		return fmt.Errorf("连接数据库失败: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	oldDB := m.db
 	m.db = db
@@ -57,7 +57,7 @@ func (m *MySQL) Close() error {
 func (m *MySQL) GetTables() ([]string, error) {
 	rows, err := m.db.Query("SHOW TABLES")
 	if err != nil {
-		return nil, fmt.Errorf("查询表列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query table list: %w", err)
 	}
 	defer rows.Close()
 
@@ -76,12 +76,12 @@ func (m *MySQL) GetTables() ([]string, error) {
 func (m *MySQL) GetTableSchema(tableName string) (string, error) {
 	rows, err := m.db.Query(fmt.Sprintf("SHOW CREATE TABLE `%s`.`%s`", m.dbConfig.Database, tableName))
 	if err != nil {
-		return "", fmt.Errorf("查询表结构失败: %w", err)
+		return "", fmt.Errorf("failed to query table schema: %w", err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		return "", fmt.Errorf("表 %s 不存在", tableName)
+		return "", fmt.Errorf("table %s does not exist", tableName)
 	}
 
 	var table, createTable string
@@ -97,7 +97,7 @@ func (m *MySQL) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 	query := fmt.Sprintf("DESCRIBE `%s`.`%s`", m.dbConfig.Database, tableName)
 	rows, err := m.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询列信息失败: %w", err)
+		return nil, fmt.Errorf("failed to query column information: %w", err)
 	}
 	defer rows.Close()
 
@@ -126,7 +126,7 @@ func (m *MySQL) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 func (m *MySQL) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 	rows, err := m.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("执行查询失败: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 
@@ -166,7 +166,7 @@ func (m *MySQL) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 func (m *MySQL) ExecuteUpdate(query string) (int64, error) {
 	result, err := m.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行更新失败: %w", err)
+		return 0, fmt.Errorf("failed to execute update: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -175,7 +175,7 @@ func (m *MySQL) ExecuteUpdate(query string) (int64, error) {
 func (m *MySQL) ExecuteDelete(query string) (int64, error) {
 	result, err := m.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行删除失败: %w", err)
+		return 0, fmt.Errorf("failed to execute delete: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -184,7 +184,7 @@ func (m *MySQL) ExecuteDelete(query string) (int64, error) {
 func (m *MySQL) ExecuteInsert(query string) (int64, error) {
 	result, err := m.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行插入失败: %w", err)
+		return 0, fmt.Errorf("failed to execute insert: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -195,7 +195,7 @@ func (m *MySQL) GetTableData(tableName string, page, pageSize int) ([]map[string
 	var total int64
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tableName)
 	if err := m.db.QueryRow(countQuery).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("查询总数失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query total count: %w", err)
 	}
 
 	// 获取分页数据
@@ -204,7 +204,7 @@ func (m *MySQL) GetTableData(tableName string, page, pageSize int) ([]map[string
 
 	rows, err := m.db.Query(query)
 	if err != nil {
-		return nil, 0, fmt.Errorf("查询数据失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
 	defer rows.Close()
 
@@ -259,7 +259,7 @@ func (m *MySQL) GetTableDataByID(tableName string, primaryKey string, lastId int
 	if direction == "prev" {
 		// 上一页：使用 WHERE id < lastId ORDER BY id DESC，然后反转结果
 		if lastId == nil {
-			return nil, 0, nil, fmt.Errorf("上一页需要提供lastId")
+			return nil, 0, nil, fmt.Errorf("lastId is required for previous page")
 		}
 		query = fmt.Sprintf("SELECT * FROM `%s` WHERE `%s` < ? ORDER BY `%s` DESC LIMIT %d", tableName, primaryKey, primaryKey, pageSize)
 		rows, err = m.db.Query(query, lastId)
@@ -355,7 +355,7 @@ func (m *MySQL) GetPageIdByPageNumber(tableName string, primaryKey string, page,
 			// 如果查询不到，说明页码超出范围，返回nil
 			return nil, nil
 		}
-		return nil, fmt.Errorf("查询页码ID失败: %w", err)
+		return nil, fmt.Errorf("failed to query page ID: %w", err)
 	}
 	
 	return id, nil
@@ -365,7 +365,7 @@ func (m *MySQL) GetPageIdByPageNumber(tableName string, primaryKey string, page,
 func (m *MySQL) GetDatabases() ([]string, error) {
 	rows, err := m.db.Query("SHOW DATABASES")
 	if err != nil {
-		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query database list: %w", err)
 	}
 	defer rows.Close()
 

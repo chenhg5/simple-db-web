@@ -25,17 +25,17 @@ func (d *DB2) Connect(dsn string) error {
 	// DB2 驱动需要系统级别的 DB2 客户端库
 	// 当前实现需要安装 DB2 客户端库和配置 CGO
 	// 如果编译失败，请安装 DB2 客户端库或使用其他 DB2 驱动
-	return fmt.Errorf("DB2 驱动需要系统级别的 DB2 客户端库，请安装 DB2 客户端库后重新编译")
+	return fmt.Errorf("DB2 driver requires system-level DB2 client library, please install DB2 client library and recompile")
 	
 	// 取消注释以下代码以使用 go_ibm_db 驱动（需要安装 DB2 客户端库）
 	/*
 	db, err := sql.Open("go_ibm_db", dsn)
 	if err != nil {
-		return fmt.Errorf("打开数据库连接失败: %w", err)
+		return fmt.Errorf("failed to open database connection: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
-		return fmt.Errorf("连接数据库失败: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	d.db = db
@@ -56,7 +56,7 @@ func (d *DB2) GetTables() ([]string, error) {
 	query := `SELECT TABNAME FROM SYSCAT.TABLES WHERE TABSCHEMA = CURRENT SCHEMA AND TYPE = 'T' ORDER BY TABNAME`
 	rows, err := d.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询表列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query table list: %w", err)
 	}
 	defer rows.Close()
 
@@ -95,12 +95,12 @@ func (d *DB2) GetTableSchema(tableName string) (string, error) {
 
 	rows, err := d.db.Query(query)
 	if err != nil {
-		return "", fmt.Errorf("查询表结构失败: %w", err)
+		return "", fmt.Errorf("failed to query table schema: %w", err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		return "", fmt.Errorf("表 %s 不存在", tableName)
+		return "", fmt.Errorf("table %s does not exist", tableName)
 	}
 
 	var createTable string
@@ -138,7 +138,7 @@ func (d *DB2) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 
 	rows, err := d.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询列信息失败: %w", err)
+		return nil, fmt.Errorf("failed to query column information: %w", err)
 	}
 	defer rows.Close()
 
@@ -166,7 +166,7 @@ func (d *DB2) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 func (d *DB2) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 	rows, err := d.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("执行查询失败: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 
@@ -206,7 +206,7 @@ func (d *DB2) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 func (d *DB2) ExecuteUpdate(query string) (int64, error) {
 	result, err := d.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行更新失败: %w", err)
+		return 0, fmt.Errorf("failed to execute update: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -215,7 +215,7 @@ func (d *DB2) ExecuteUpdate(query string) (int64, error) {
 func (d *DB2) ExecuteDelete(query string) (int64, error) {
 	result, err := d.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行删除失败: %w", err)
+		return 0, fmt.Errorf("failed to execute delete: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -224,7 +224,7 @@ func (d *DB2) ExecuteDelete(query string) (int64, error) {
 func (d *DB2) ExecuteInsert(query string) (int64, error) {
 	result, err := d.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行插入失败: %w", err)
+		return 0, fmt.Errorf("failed to execute insert: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -235,7 +235,7 @@ func (d *DB2) GetTableData(tableName string, page, pageSize int) ([]map[string]i
 	var total int64
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", strings.ToUpper(tableName))
 	if err := d.db.QueryRow(countQuery).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("查询总数失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query total count: %w", err)
 	}
 
 	// 获取分页数据
@@ -249,7 +249,7 @@ func (d *DB2) GetTableData(tableName string, page, pageSize int) ([]map[string]i
 
 	rows, err := d.db.Query(query)
 	if err != nil {
-		return nil, 0, fmt.Errorf("查询数据失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
 	defer rows.Close()
 
@@ -303,7 +303,7 @@ func (d *DB2) GetTableDataByID(tableName string, primaryKey string, lastId inter
 
 	if direction == "prev" {
 		if lastId == nil {
-			return nil, 0, nil, fmt.Errorf("上一页需要提供lastId")
+			return nil, 0, nil, fmt.Errorf("lastId is required for previous page")
 		}
 		query = fmt.Sprintf(`
 			SELECT * FROM (
@@ -401,7 +401,7 @@ func (d *DB2) GetPageIdByPageNumber(tableName string, primaryKey string, page, p
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("查询页码ID失败: %w", err)
+		return nil, fmt.Errorf("failed to query page ID: %w", err)
 	}
 
 	return id, nil
@@ -413,7 +413,7 @@ func (d *DB2) GetDatabases() ([]string, error) {
 	query := `SELECT SCHEMANAME FROM SYSCAT.SCHEMATA WHERE SCHEMANAME NOT LIKE 'SYS%' ORDER BY SCHEMANAME`
 	rows, err := d.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query database list: %w", err)
 	}
 	defer rows.Close()
 

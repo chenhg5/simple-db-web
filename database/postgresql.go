@@ -21,11 +21,11 @@ func NewPostgreSQL() *PostgreSQL {
 func (p *PostgreSQL) Connect(dsn string) error {
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		return fmt.Errorf("打开数据库连接失败: %w", err)
+		return fmt.Errorf("failed to open database connection: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
-		return fmt.Errorf("连接数据库失败: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	p.db = db
@@ -45,7 +45,7 @@ func (p *PostgreSQL) GetTables() ([]string, error) {
 	query := `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`
 	rows, err := p.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询表列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query table list: %w", err)
 	}
 	defer rows.Close()
 
@@ -89,12 +89,12 @@ func (p *PostgreSQL) GetTableSchema(tableName string) (string, error) {
 
 	rows, err := p.db.Query(query)
 	if err != nil {
-		return "", fmt.Errorf("查询表结构失败: %w", err)
+		return "", fmt.Errorf("failed to query table schema: %w", err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		return "", fmt.Errorf("表 %s 不存在", tableName)
+		return "", fmt.Errorf("table %s does not exist", tableName)
 	}
 
 	var createTable string
@@ -135,7 +135,7 @@ func (p *PostgreSQL) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 
 	rows, err := p.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询列信息失败: %w", err)
+		return nil, fmt.Errorf("failed to query column information: %w", err)
 	}
 	defer rows.Close()
 
@@ -167,7 +167,7 @@ func (p *PostgreSQL) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 func (p *PostgreSQL) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 	rows, err := p.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("执行查询失败: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 
@@ -207,7 +207,7 @@ func (p *PostgreSQL) ExecuteQuery(query string) ([]map[string]interface{}, error
 func (p *PostgreSQL) ExecuteUpdate(query string) (int64, error) {
 	result, err := p.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行更新失败: %w", err)
+		return 0, fmt.Errorf("failed to execute update: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -216,7 +216,7 @@ func (p *PostgreSQL) ExecuteUpdate(query string) (int64, error) {
 func (p *PostgreSQL) ExecuteDelete(query string) (int64, error) {
 	result, err := p.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行删除失败: %w", err)
+		return 0, fmt.Errorf("failed to execute delete: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -225,7 +225,7 @@ func (p *PostgreSQL) ExecuteDelete(query string) (int64, error) {
 func (p *PostgreSQL) ExecuteInsert(query string) (int64, error) {
 	result, err := p.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行插入失败: %w", err)
+		return 0, fmt.Errorf("failed to execute insert: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -236,7 +236,7 @@ func (p *PostgreSQL) GetTableData(tableName string, page, pageSize int) ([]map[s
 	var total int64
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, tableName)
 	if err := p.db.QueryRow(countQuery).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("查询总数失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query total count: %w", err)
 	}
 
 	// 获取分页数据
@@ -245,7 +245,7 @@ func (p *PostgreSQL) GetTableData(tableName string, page, pageSize int) ([]map[s
 
 	rows, err := p.db.Query(query)
 	if err != nil {
-		return nil, 0, fmt.Errorf("查询数据失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
 	defer rows.Close()
 
@@ -300,7 +300,7 @@ func (p *PostgreSQL) GetTableDataByID(tableName string, primaryKey string, lastI
 	if direction == "prev" {
 		// 上一页：使用 WHERE id < lastId ORDER BY id DESC，然后反转结果
 		if lastId == nil {
-			return nil, 0, nil, fmt.Errorf("上一页需要提供lastId")
+			return nil, 0, nil, fmt.Errorf("lastId is required for previous page")
 		}
 		query = fmt.Sprintf(`SELECT * FROM "%s" WHERE "%s" < $1 ORDER BY "%s" DESC LIMIT %d`, tableName, primaryKey, primaryKey, pageSize)
 		rows, err = p.db.Query(query, lastId)
@@ -395,7 +395,7 @@ func (p *PostgreSQL) GetPageIdByPageNumber(tableName string, primaryKey string, 
 			// 如果查询不到，说明页码超出范围，返回nil
 			return nil, nil
 		}
-		return nil, fmt.Errorf("查询页码ID失败: %w", err)
+		return nil, fmt.Errorf("failed to query page ID: %w", err)
 	}
 	
 	return id, nil
@@ -406,7 +406,7 @@ func (p *PostgreSQL) GetDatabases() ([]string, error) {
 	query := `SELECT datname FROM pg_database WHERE datistemplate = false AND datname != 'postgres' ORDER BY datname`
 	rows, err := p.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query database list: %w", err)
 	}
 	defer rows.Close()
 
@@ -425,7 +425,7 @@ func (p *PostgreSQL) GetDatabases() ([]string, error) {
 func (p *PostgreSQL) SwitchDatabase(databaseName string) error {
 	// PostgreSQL需要重新连接才能切换数据库
 	// 这里我们关闭当前连接，调用者需要重新连接
-	return fmt.Errorf("PostgreSQL切换数据库需要重新连接，请使用新的连接信息重新连接")
+	return fmt.Errorf("PostgreSQL requires reconnection to switch database, please reconnect with new connection info")
 }
 
 // BuildPostgreSQLDSN 根据连接信息构建PostgreSQL DSN

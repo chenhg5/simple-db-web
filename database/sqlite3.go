@@ -22,11 +22,11 @@ func NewSQLite3() *SQLite3 {
 func (s *SQLite3) Connect(dsn string) error {
 	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
-		return fmt.Errorf("打开数据库连接失败: %w", err)
+		return fmt.Errorf("failed to open database connection: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
-		return fmt.Errorf("连接数据库失败: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	s.db = db
@@ -45,7 +45,7 @@ func (s *SQLite3) Close() error {
 func (s *SQLite3) GetTables() ([]string, error) {
 	rows, err := s.db.Query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
 	if err != nil {
-		return nil, fmt.Errorf("查询表列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query table list: %w", err)
 	}
 	defer rows.Close()
 
@@ -64,12 +64,12 @@ func (s *SQLite3) GetTables() ([]string, error) {
 func (s *SQLite3) GetTableSchema(tableName string) (string, error) {
 	rows, err := s.db.Query(fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'", tableName))
 	if err != nil {
-		return "", fmt.Errorf("查询表结构失败: %w", err)
+		return "", fmt.Errorf("failed to query table schema: %w", err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		return "", fmt.Errorf("表 %s 不存在", tableName)
+		return "", fmt.Errorf("table %s does not exist", tableName)
 	}
 
 	var createTable string
@@ -85,7 +85,7 @@ func (s *SQLite3) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 	query := fmt.Sprintf("PRAGMA table_info(`%s`)", tableName)
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询列信息失败: %w", err)
+		return nil, fmt.Errorf("failed to query column information: %w", err)
 	}
 	defer rows.Close()
 
@@ -117,7 +117,7 @@ func (s *SQLite3) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 func (s *SQLite3) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("执行查询失败: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 
@@ -157,7 +157,7 @@ func (s *SQLite3) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 func (s *SQLite3) ExecuteUpdate(query string) (int64, error) {
 	result, err := s.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行更新失败: %w", err)
+		return 0, fmt.Errorf("failed to execute update: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -166,7 +166,7 @@ func (s *SQLite3) ExecuteUpdate(query string) (int64, error) {
 func (s *SQLite3) ExecuteDelete(query string) (int64, error) {
 	result, err := s.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行删除失败: %w", err)
+		return 0, fmt.Errorf("failed to execute delete: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -175,7 +175,7 @@ func (s *SQLite3) ExecuteDelete(query string) (int64, error) {
 func (s *SQLite3) ExecuteInsert(query string) (int64, error) {
 	result, err := s.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行插入失败: %w", err)
+		return 0, fmt.Errorf("failed to execute insert: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -186,7 +186,7 @@ func (s *SQLite3) GetTableData(tableName string, page, pageSize int) ([]map[stri
 	var total int64
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tableName)
 	if err := s.db.QueryRow(countQuery).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("查询总数失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query total count: %w", err)
 	}
 
 	// 获取分页数据
@@ -195,7 +195,7 @@ func (s *SQLite3) GetTableData(tableName string, page, pageSize int) ([]map[stri
 
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, 0, fmt.Errorf("查询数据失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
 	defer rows.Close()
 
@@ -239,7 +239,7 @@ func (s *SQLite3) GetTableDataByID(tableName string, primaryKey string, lastId i
 	var total int64
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tableName)
 	if err := s.db.QueryRow(countQuery).Scan(&total); err != nil {
-		return nil, 0, nil, fmt.Errorf("查询总数失败: %w", err)
+		return nil, 0, nil, fmt.Errorf("failed to query total count: %w", err)
 	}
 
 	// 构建基于ID的查询
@@ -250,7 +250,7 @@ func (s *SQLite3) GetTableDataByID(tableName string, primaryKey string, lastId i
 	if direction == "prev" {
 		// 上一页：使用 WHERE id < lastId ORDER BY id DESC，然后反转结果
 		if lastId == nil {
-			return nil, 0, nil, fmt.Errorf("上一页需要提供lastId")
+			return nil, 0, nil, fmt.Errorf("lastId is required for previous page")
 		}
 		query = fmt.Sprintf("SELECT * FROM `%s` WHERE `%s` < ? ORDER BY `%s` DESC LIMIT %d", tableName, primaryKey, primaryKey, pageSize)
 		rows, err = s.db.Query(query, lastId)
@@ -267,7 +267,7 @@ func (s *SQLite3) GetTableDataByID(tableName string, primaryKey string, lastId i
 		}
 	}
 	if err != nil {
-		return nil, 0, nil, fmt.Errorf("查询数据失败: %w", err)
+		return nil, 0, nil, fmt.Errorf("failed to query data: %w", err)
 	}
 	defer rows.Close()
 
@@ -345,7 +345,7 @@ func (s *SQLite3) GetPageIdByPageNumber(tableName string, primaryKey string, pag
 			// 如果查询不到，说明页码超出范围，返回nil
 			return nil, nil
 		}
-		return nil, fmt.Errorf("查询页码ID失败: %w", err)
+		return nil, fmt.Errorf("failed to query page ID: %w", err)
 	}
 	
 	return id, nil
@@ -358,7 +358,7 @@ func (s *SQLite3) GetDatabases() ([]string, error) {
 
 // SwitchDatabase SQLite3不支持切换数据库
 func (s *SQLite3) SwitchDatabase(databaseName string) error {
-	return fmt.Errorf("SQLite3不支持切换数据库")
+	return fmt.Errorf("SQLite3 does not support switching databases")
 }
 
 // BuildSQLite3DSN 根据连接信息构建SQLite3 DSN

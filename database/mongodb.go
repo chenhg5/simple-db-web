@@ -37,11 +37,11 @@ func (m *MongoDB) Connect(dsn string) error {
 
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		return fmt.Errorf("打开数据库连接失败: %w", err)
+		return fmt.Errorf("failed to open database connection: %w", err)
 	}
 
 	if err := client.Ping(ctx, nil); err != nil {
-		return fmt.Errorf("连接数据库失败: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	m.client = client
@@ -76,15 +76,15 @@ func (m *MongoDB) Close() error {
 // GetTables 获取所有集合名（MongoDB 中表称为集合）
 func (m *MongoDB) GetTables() ([]string, error) {
 	if m.client == nil {
-		return nil, fmt.Errorf("数据库未连接")
+		return nil, fmt.Errorf("database not connected")
 	}
 	if m.database == nil {
-		return nil, fmt.Errorf("未选择数据库")
+		return nil, fmt.Errorf("database not selected")
 	}
 
 	collections, err := m.database.ListCollectionNames(m.ctx, bson.M{})
 	if err != nil {
-		return nil, fmt.Errorf("查询集合列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query collection list: %w", err)
 	}
 
 	return collections, nil
@@ -93,10 +93,10 @@ func (m *MongoDB) GetTables() ([]string, error) {
 // GetTableSchema 获取集合结构（MongoDB 是文档数据库，没有固定结构）
 func (m *MongoDB) GetTableSchema(tableName string) (string, error) {
 	if m.client == nil {
-		return "", fmt.Errorf("数据库未连接")
+		return "", fmt.Errorf("database not connected")
 	}
 	if m.database == nil {
-		return "", fmt.Errorf("未选择数据库")
+		return "", fmt.Errorf("database not selected")
 	}
 
 	collection := m.database.Collection(tableName)
@@ -108,13 +108,13 @@ func (m *MongoDB) GetTableSchema(tableName string) (string, error) {
 		if err == mongo.ErrNoDocuments {
 			return fmt.Sprintf("集合 %s 为空，无法推断结构", tableName), nil
 		}
-		return "", fmt.Errorf("查询集合结构失败: %w", err)
+		return "", fmt.Errorf("failed to query collection schema: %w", err)
 	}
 
 	// 构建结构描述
 	var schema strings.Builder
-	schema.WriteString(fmt.Sprintf("集合: %s\n", tableName))
-	schema.WriteString("文档结构（示例）:\n")
+	schema.WriteString(fmt.Sprintf("Collection: %s\n", tableName))
+	schema.WriteString("Document structure (example):\n")
 	
 	for key, value := range sampleDoc {
 		schema.WriteString(fmt.Sprintf("  %s: %T\n", key, value))
@@ -126,10 +126,10 @@ func (m *MongoDB) GetTableSchema(tableName string) (string, error) {
 // GetTableColumns 获取集合的字段信息（MongoDB 是文档数据库，字段可能不固定）
 func (m *MongoDB) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 	if m.client == nil {
-		return nil, fmt.Errorf("数据库未连接")
+		return nil, fmt.Errorf("database not connected")
 	}
 	if m.database == nil {
-		return nil, fmt.Errorf("未选择数据库")
+		return nil, fmt.Errorf("database not selected")
 	}
 
 	collection := m.database.Collection(tableName)
@@ -141,7 +141,7 @@ func (m *MongoDB) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 		if err == mongo.ErrNoDocuments {
 			return []ColumnInfo{}, nil
 		}
-		return nil, fmt.Errorf("查询集合字段失败: %w", err)
+		return nil, fmt.Errorf("failed to query collection fields: %w", err)
 	}
 
 	var columns []ColumnInfo
@@ -164,10 +164,10 @@ func (m *MongoDB) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 // ExecuteQuery 执行查询（MongoDB 使用 JSON 查询）
 func (m *MongoDB) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 	if m.client == nil {
-		return nil, fmt.Errorf("数据库未连接")
+		return nil, fmt.Errorf("database not connected")
 	}
 	if m.database == nil {
-		return nil, fmt.Errorf("未选择数据库")
+		return nil, fmt.Errorf("database not selected")
 	}
 
 	// MongoDB 查询需要解析为 JSON/BSON
@@ -178,7 +178,7 @@ func (m *MongoDB) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 	// 格式: db.collectionName.find({...}) 或 collectionName.find({...})
 	parts := strings.Fields(query)
 	if len(parts) < 2 {
-		return nil, fmt.Errorf("MongoDB 查询格式错误，期望: collectionName.find({...})")
+		return nil, fmt.Errorf("MongoDB query format error, expected: collectionName.find({...})")
 	}
 
 	collectionName := parts[0]
@@ -203,7 +203,7 @@ func (m *MongoDB) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 
 	cursor, err := collection.Find(m.ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("执行查询失败: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer cursor.Close(m.ctx)
 
@@ -232,17 +232,17 @@ func (m *MongoDB) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 // ExecuteUpdate 执行更新
 func (m *MongoDB) ExecuteUpdate(query string) (int64, error) {
 	if m.client == nil {
-		return 0, fmt.Errorf("数据库未连接")
+		return 0, fmt.Errorf("database not connected")
 	}
 	if m.database == nil {
-		return 0, fmt.Errorf("未选择数据库")
+		return 0, fmt.Errorf("database not selected")
 	}
 
 	// MongoDB 更新需要解析为 update 命令
 	// 格式: collectionName.update({filter}, {update})
 	parts := strings.Fields(query)
 	if len(parts) < 2 {
-		return 0, fmt.Errorf("MongoDB 更新格式错误")
+		return 0, fmt.Errorf("MongoDB update format error")
 	}
 
 	collectionName := parts[0]
@@ -253,22 +253,22 @@ func (m *MongoDB) ExecuteUpdate(query string) (int64, error) {
 	// 简化处理：这里需要更复杂的解析逻辑
 	// 暂时返回错误，提示使用正确的 MongoDB 更新语法
 	_ = collectionName // 避免未使用变量错误
-	return 0, fmt.Errorf("MongoDB 更新操作需要特殊的语法解析，请使用 MongoDB 原生语法")
+	return 0, fmt.Errorf("MongoDB update operation requires special syntax parsing, please use MongoDB native syntax")
 }
 
 // ExecuteDelete 执行删除
 func (m *MongoDB) ExecuteDelete(query string) (int64, error) {
 	if m.client == nil {
-		return 0, fmt.Errorf("数据库未连接")
+		return 0, fmt.Errorf("database not connected")
 	}
 	if m.database == nil {
-		return 0, fmt.Errorf("未选择数据库")
+		return 0, fmt.Errorf("database not selected")
 	}
 
 	// MongoDB 删除需要解析为 delete 命令
 	parts := strings.Fields(query)
 	if len(parts) < 2 {
-		return 0, fmt.Errorf("MongoDB 删除格式错误")
+		return 0, fmt.Errorf("MongoDB delete format error")
 	}
 
 	collectionName := parts[0]
@@ -291,7 +291,7 @@ func (m *MongoDB) ExecuteDelete(query string) (int64, error) {
 
 	result, err := collection.DeleteMany(m.ctx, filter)
 	if err != nil {
-		return 0, fmt.Errorf("执行删除失败: %w", err)
+		return 0, fmt.Errorf("failed to execute delete: %w", err)
 	}
 
 	return result.DeletedCount, nil
@@ -300,16 +300,16 @@ func (m *MongoDB) ExecuteDelete(query string) (int64, error) {
 // ExecuteInsert 执行插入
 func (m *MongoDB) ExecuteInsert(query string) (int64, error) {
 	if m.client == nil {
-		return 0, fmt.Errorf("数据库未连接")
+		return 0, fmt.Errorf("database not connected")
 	}
 	if m.database == nil {
-		return 0, fmt.Errorf("未选择数据库")
+		return 0, fmt.Errorf("database not selected")
 	}
 
 	// MongoDB 插入需要解析为 insert 命令
 	parts := strings.Fields(query)
 	if len(parts) < 2 {
-		return 0, fmt.Errorf("MongoDB 插入格式错误")
+		return 0, fmt.Errorf("MongoDB insert format error")
 	}
 
 	collectionName := parts[0]
@@ -324,15 +324,15 @@ func (m *MongoDB) ExecuteInsert(query string) (int64, error) {
 	if len(parts) > 2 {
 		docStr := strings.Join(parts[2:], " ")
 		if err := bson.UnmarshalExtJSON([]byte(docStr), true, &doc); err != nil {
-			return 0, fmt.Errorf("解析插入文档失败: %w", err)
+			return 0, fmt.Errorf("failed to parse insert document: %w", err)
 		}
 	} else {
-		return 0, fmt.Errorf("缺少插入文档")
+		return 0, fmt.Errorf("missing insert document")
 	}
 
 	_, err := collection.InsertOne(m.ctx, doc)
 	if err != nil {
-		return 0, fmt.Errorf("执行插入失败: %w", err)
+		return 0, fmt.Errorf("failed to execute insert: %w", err)
 	}
 
 	return 1, nil
@@ -341,10 +341,10 @@ func (m *MongoDB) ExecuteInsert(query string) (int64, error) {
 // GetTableData 获取集合数据（分页）
 func (m *MongoDB) GetTableData(tableName string, page, pageSize int) ([]map[string]interface{}, int64, error) {
 	if m.client == nil {
-		return nil, 0, fmt.Errorf("数据库未连接")
+		return nil, 0, fmt.Errorf("database not connected")
 	}
 	if m.database == nil {
-		return nil, 0, fmt.Errorf("未选择数据库")
+		return nil, 0, fmt.Errorf("database not selected")
 	}
 
 	collection := m.database.Collection(tableName)
@@ -352,7 +352,7 @@ func (m *MongoDB) GetTableData(tableName string, page, pageSize int) ([]map[stri
 	// 获取总数
 	total, err := collection.CountDocuments(m.ctx, bson.M{})
 	if err != nil {
-		return nil, 0, fmt.Errorf("查询总数失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query total count: %w", err)
 	}
 
 	// 获取分页数据
@@ -362,7 +362,7 @@ func (m *MongoDB) GetTableData(tableName string, page, pageSize int) ([]map[stri
 	opts := options.Find().SetSkip(skip).SetLimit(limit)
 	cursor, err := collection.Find(m.ctx, bson.M{}, opts)
 	if err != nil {
-		return nil, 0, fmt.Errorf("查询数据失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
 	defer cursor.Close(m.ctx)
 
@@ -415,7 +415,7 @@ func (m *MongoDB) GetTableDataByID(tableName string, primaryKey string, lastId i
 
 	if direction == "prev" {
 		if lastId == nil {
-			return nil, 0, nil, fmt.Errorf("上一页需要提供lastId")
+			return nil, 0, nil, fmt.Errorf("lastId is required for previous page")
 		}
 		// 转换 lastId 为 ObjectID（如果是字符串）
 		var oid primitive.ObjectID
@@ -491,10 +491,10 @@ func (m *MongoDB) GetTableDataByID(tableName string, primaryKey string, lastId i
 // GetPageIdByPageNumber 根据页码计算该页的起始ID（用于页码跳转）
 func (m *MongoDB) GetPageIdByPageNumber(tableName string, primaryKey string, page, pageSize int) (interface{}, error) {
 	if m.client == nil {
-		return nil, fmt.Errorf("数据库未连接")
+		return nil, fmt.Errorf("database not connected")
 	}
 	if m.database == nil {
-		return nil, fmt.Errorf("未选择数据库")
+		return nil, fmt.Errorf("database not selected")
 	}
 
 	if page <= 1 {
@@ -516,7 +516,7 @@ func (m *MongoDB) GetPageIdByPageNumber(tableName string, primaryKey string, pag
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("查询页码ID失败: %w", err)
+		return nil, fmt.Errorf("failed to query page ID: %w", err)
 	}
 
 	if idVal, ok := doc[primaryKey]; ok {
@@ -532,12 +532,12 @@ func (m *MongoDB) GetPageIdByPageNumber(tableName string, primaryKey string, pag
 // GetDatabases 获取所有数据库名称
 func (m *MongoDB) GetDatabases() ([]string, error) {
 	if m.client == nil {
-		return nil, fmt.Errorf("数据库未连接")
+		return nil, fmt.Errorf("database not connected")
 	}
 
 	databases, err := m.client.ListDatabaseNames(m.ctx, bson.M{})
 	if err != nil {
-		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query database list: %w", err)
 	}
 
 	// 过滤系统数据库
@@ -554,7 +554,7 @@ func (m *MongoDB) GetDatabases() ([]string, error) {
 // SwitchDatabase 切换当前使用的数据库
 func (m *MongoDB) SwitchDatabase(databaseName string) error {
 	if m.client == nil {
-		return fmt.Errorf("数据库未连接")
+		return fmt.Errorf("database not connected")
 	}
 	m.database = m.client.Database(databaseName)
 	return nil

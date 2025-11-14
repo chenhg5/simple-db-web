@@ -21,11 +21,11 @@ func NewSQLServer() *SQLServer {
 func (s *SQLServer) Connect(dsn string) error {
 	db, err := sql.Open("sqlserver", dsn)
 	if err != nil {
-		return fmt.Errorf("打开数据库连接失败: %w", err)
+		return fmt.Errorf("failed to open database connection: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
-		return fmt.Errorf("连接数据库失败: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	s.db = db
@@ -45,7 +45,7 @@ func (s *SQLServer) GetTables() ([]string, error) {
 	query := `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME`
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询表列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query table list: %w", err)
 	}
 	defer rows.Close()
 
@@ -92,12 +92,12 @@ func (s *SQLServer) GetTableSchema(tableName string) (string, error) {
 
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return "", fmt.Errorf("查询表结构失败: %w", err)
+		return "", fmt.Errorf("failed to query table schema: %w", err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		return "", fmt.Errorf("表 %s 不存在", tableName)
+		return "", fmt.Errorf("table %s does not exist", tableName)
 	}
 
 	var createTable string
@@ -139,7 +139,7 @@ func (s *SQLServer) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询列信息失败: %w", err)
+		return nil, fmt.Errorf("failed to query column information: %w", err)
 	}
 	defer rows.Close()
 
@@ -167,7 +167,7 @@ func (s *SQLServer) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 func (s *SQLServer) ExecuteQuery(query string) ([]map[string]interface{}, error) {
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("执行查询失败: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 
@@ -207,7 +207,7 @@ func (s *SQLServer) ExecuteQuery(query string) ([]map[string]interface{}, error)
 func (s *SQLServer) ExecuteUpdate(query string) (int64, error) {
 	result, err := s.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行更新失败: %w", err)
+		return 0, fmt.Errorf("failed to execute update: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -216,7 +216,7 @@ func (s *SQLServer) ExecuteUpdate(query string) (int64, error) {
 func (s *SQLServer) ExecuteDelete(query string) (int64, error) {
 	result, err := s.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行删除失败: %w", err)
+		return 0, fmt.Errorf("failed to execute delete: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -225,7 +225,7 @@ func (s *SQLServer) ExecuteDelete(query string) (int64, error) {
 func (s *SQLServer) ExecuteInsert(query string) (int64, error) {
 	result, err := s.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行插入失败: %w", err)
+		return 0, fmt.Errorf("failed to execute insert: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -236,7 +236,7 @@ func (s *SQLServer) GetTableData(tableName string, page, pageSize int) ([]map[st
 	var total int64
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM [%s]", tableName)
 	if err := s.db.QueryRow(countQuery).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("查询总数失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query total count: %w", err)
 	}
 
 	// 获取分页数据
@@ -250,7 +250,7 @@ func (s *SQLServer) GetTableData(tableName string, page, pageSize int) ([]map[st
 
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, 0, fmt.Errorf("查询数据失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
 	defer rows.Close()
 
@@ -304,7 +304,7 @@ func (s *SQLServer) GetTableDataByID(tableName string, primaryKey string, lastId
 
 	if direction == "prev" {
 		if lastId == nil {
-			return nil, 0, nil, fmt.Errorf("上一页需要提供lastId")
+			return nil, 0, nil, fmt.Errorf("lastId is required for previous page")
 		}
 		query = fmt.Sprintf(`
 			SELECT * FROM (
@@ -402,7 +402,7 @@ func (s *SQLServer) GetPageIdByPageNumber(tableName string, primaryKey string, p
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("查询页码ID失败: %w", err)
+		return nil, fmt.Errorf("failed to query page ID: %w", err)
 	}
 
 	return id, nil
@@ -413,7 +413,7 @@ func (s *SQLServer) GetDatabases() ([]string, error) {
 	query := `SELECT name FROM sys.databases WHERE name NOT IN ('master', 'tempdb', 'model', 'msdb') ORDER BY name`
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query database list: %w", err)
 	}
 	defer rows.Close()
 

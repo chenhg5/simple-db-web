@@ -32,7 +32,7 @@ func (m *DBConfig) BuildDSN() string {
 func GetDBConfigFromDSN(dsn string) (*DBConfig, error) {
 	parsedDSN, err := mysqlDriver.ParseDSN(dsn)
 	if err != nil {
-		return nil, fmt.Errorf("解析DSN失败: %w", err)
+		return nil, fmt.Errorf("failed to parse DSN: %w", err)
 	}
 	host := parsedDSN.Addr
 	addrs := strings.Split(parsedDSN.Addr, ":")

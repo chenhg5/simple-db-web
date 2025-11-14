@@ -41,7 +41,7 @@ func (m *BaseMysqlBasedDialect) GetDatabases() ([]string, error) {
 	var databases []string
 	rows, err := m.db.Query("SHOW DATABASES")
 	if err != nil {
-		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query database list: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -59,7 +59,7 @@ func (m *BaseMysqlBasedDialect) GetTables() ([]string, error) {
 	var tables []string
 	rows, err := m.db.Query("SHOW TABLES")
 	if err != nil {
-		return nil, fmt.Errorf("查询表列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query table list: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -78,7 +78,7 @@ func (m *BaseMysqlBasedDialect) GetTableSchema(tableName string) (string, error)
 	var schemas []string
 	rows, err := m.db.Query(query)
 	if err != nil {
-		return "", fmt.Errorf("查询表结构失败: %w", err)
+		return "", fmt.Errorf("failed to query table schema: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -97,7 +97,7 @@ func (m *BaseMysqlBasedDialect) GetTableColumns(tableName string) ([]ColumnInfo,
 	var rows []map[string]interface{}
 	scanRows, err := m.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询列信息失败: %w", err)
+		return nil, fmt.Errorf("failed to query column information: %w", err)
 	}
 	defer scanRows.Close()
 	for scanRows.Next() {

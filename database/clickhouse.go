@@ -59,11 +59,11 @@ func (c *ClickHouse) Connect(dsn string) error {
 
 	db, err := sql.Open("clickhouse", dsn)
 	if err != nil {
-		return fmt.Errorf("打开数据库连接失败: %w", err)
+		return fmt.Errorf("failed to open database connection: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
-		return fmt.Errorf("连接数据库失败: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	oldDB := c.db
 	c.db = db
@@ -91,7 +91,7 @@ func (c *ClickHouse) Close() error {
 func (c *ClickHouse) GetTables() ([]string, error) {
 	rows, err := c.db.Query("SELECT name FROM system.tables WHERE database = currentDatabase()")
 	if err != nil {
-		return nil, fmt.Errorf("查询表列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query table list: %w", err)
 	}
 	defer rows.Close()
 
@@ -114,14 +114,14 @@ func (c *ClickHouse) GetTableSchema(tableName string) (string, error) {
 	c.dbMutex.RUnlock()
 
 	if currentDB == "" {
-		return "", fmt.Errorf("当前数据库未设置")
+		return "", fmt.Errorf("current database not set")
 	}
 
 	// ClickHouse 使用 DESCRIBE TABLE 获取表结构
 	// 使用 database.table 格式确保查询正确的数据库
 	rows, err := c.db.Query(fmt.Sprintf("DESCRIBE TABLE `%s`.`%s`", currentDB, tableName))
 	if err != nil {
-		return "", fmt.Errorf("查询表结构失败: %w", err)
+		return "", fmt.Errorf("failed to query table schema: %w", err)
 	}
 	defer rows.Close()
 
@@ -172,7 +172,7 @@ func (c *ClickHouse) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 	query := fmt.Sprintf("DESCRIBE TABLE `%s`.`%s`", currentDB, tableName)
 	rows, err := c.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询列信息失败: %w", err)
+		return nil, fmt.Errorf("failed to query column information: %w", err)
 	}
 	defer rows.Close()
 
@@ -213,13 +213,13 @@ func (c *ClickHouse) ExecuteQuery(query string) ([]map[string]interface{}, error
 		// 使用 Exec 执行 USE 语句，确保连接在正确的数据库上下文中
 		// 注意：虽然连接池可能复用连接，但每次查询前执行 USE 可以确保正确性
 		if _, err := c.db.Exec(fmt.Sprintf("USE `%s`", currentDB)); err != nil {
-			return nil, fmt.Errorf("切换数据库上下文失败: %w", err)
+			return nil, fmt.Errorf("failed to switch database context: %w", err)
 		}
 	}
 
 	rows, err := c.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("执行查询失败: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 
@@ -257,19 +257,19 @@ func (c *ClickHouse) ExecuteQuery(query string) ([]map[string]interface{}, error
 
 // ExecuteUpdate 执行更新（ClickHouse 不支持 UPDATE，返回错误）
 func (c *ClickHouse) ExecuteUpdate(query string) (int64, error) {
-	return 0, fmt.Errorf("ClickHouse 不支持 UPDATE 操作")
+	return 0, fmt.Errorf("ClickHouse does not support UPDATE operations")
 }
 
 // ExecuteDelete 执行删除（ClickHouse 不支持 DELETE，返回错误）
 func (c *ClickHouse) ExecuteDelete(query string) (int64, error) {
-	return 0, fmt.Errorf("ClickHouse 不支持 DELETE 操作")
+	return 0, fmt.Errorf("ClickHouse does not support DELETE operations")
 }
 
 // ExecuteInsert 执行插入
 func (c *ClickHouse) ExecuteInsert(query string) (int64, error) {
 	result, err := c.db.Exec(query)
 	if err != nil {
-		return 0, fmt.Errorf("执行插入失败: %w", err)
+		return 0, fmt.Errorf("failed to execute insert: %w", err)
 	}
 	return result.RowsAffected()
 }
@@ -293,7 +293,7 @@ func (c *ClickHouse) GetTableData(tableName string, page, pageSize int) ([]map[s
 
 	rows, err := c.db.Query(query)
 	if err != nil {
-		return nil, 0, fmt.Errorf("查询数据失败: %w", err)
+		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
 	defer rows.Close()
 
@@ -334,19 +334,19 @@ func (c *ClickHouse) GetTableData(tableName string, page, pageSize int) ([]map[s
 
 // GetTableDataByID 基于主键ID获取表数据（ClickHouse不支持，返回错误）
 func (c *ClickHouse) GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string) ([]map[string]interface{}, int64, interface{}, error) {
-	return nil, 0, nil, fmt.Errorf("ClickHouse 不支持基于ID的分页")
+	return nil, 0, nil, fmt.Errorf("ClickHouse does not support ID-based pagination")
 }
 
 // GetPageIdByPageNumber 根据页码计算该页的起始ID（ClickHouse不支持，返回错误）
 func (c *ClickHouse) GetPageIdByPageNumber(tableName string, primaryKey string, page, pageSize int) (interface{}, error) {
-	return nil, fmt.Errorf("ClickHouse 不支持基于ID的分页")
+	return nil, fmt.Errorf("ClickHouse does not support ID-based pagination")
 }
 
 // GetDatabases 获取所有数据库名称
 func (c *ClickHouse) GetDatabases() ([]string, error) {
 	rows, err := c.db.Query("SELECT name FROM system.databases WHERE name NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')")
 	if err != nil {
-		return nil, fmt.Errorf("查询数据库列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query database list: %w", err)
 	}
 	defer rows.Close()
 
@@ -365,7 +365,7 @@ func (c *ClickHouse) GetDatabases() ([]string, error) {
 func (c *ClickHouse) SwitchDatabase(databaseName string) error {
 	_, err := c.db.Exec(fmt.Sprintf("USE `%s`", databaseName))
 	if err != nil {
-		return fmt.Errorf("切换数据库失败: %w", err)
+		return fmt.Errorf("failed to switch database: %w", err)
 	}
 
 	// 更新存储的数据库名
