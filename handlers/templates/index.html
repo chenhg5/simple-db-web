@@ -391,10 +391,12 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label data-i18n="proxy.key">SSH私钥（可选，base64编码）</label>
-                                <textarea id="proxyKeyData" class="form-control" rows="3"
-                                    placeholder="如果使用密钥认证，请粘贴私钥内容（base64编码）"></textarea>
-                                <small style="color: var(--text-secondary); font-size: 0.75rem;" data-i18n="proxy.keyHint">如果提供了私钥，将优先使用私钥认证</small>
+                                <label data-i18n="proxy.key">SSH私钥（可选）</label>
+                                <input type="file" id="proxyKeyFile" class="form-control" accept=".pem,.key,*" style="padding: 0.5rem;">
+                                <small style="color: var(--text-secondary); font-size: 0.75rem; display: block; margin-top: 0.25rem;" data-i18n="proxy.keyHint">如果提供了私钥，将优先使用私钥认证</small>
+                                <small style="color: var(--text-secondary); font-size: 0.75rem; display: block; margin-top: 0.25rem;" id="proxyKeyFileName"></small>
+                                <!-- 隐藏的 textarea 用于存储私钥内容（加密后） -->
+                                <textarea id="proxyKeyData" style="display: none;"></textarea>
                             </div>
                             <div class="form-group">
                             </div>

@@ -60,8 +60,9 @@ const i18n = {
             'proxy.port': 'Proxy Port',
             'proxy.user': 'Proxy Username',
             'proxy.password': 'Proxy Password (optional, not required if private key is provided)',
-            'proxy.key': 'SSH Private Key (optional, base64 encoded, not required if password is provided)',
+            'proxy.key': 'SSH Private Key (optional, upload key file, not required if password is provided)',
             'proxy.keyHint': 'If a private key is provided, key authentication will be prioritized',
+            'proxy.keyFileSelected': 'Key file selected',
             'proxy.required': 'Please fill in proxy host and username',
             'proxy.authRequired': 'Please provide either password or private key for SSH authentication',
             
@@ -239,8 +240,9 @@ const i18n = {
             'proxy.port': '代理端口',
             'proxy.user': '代理用户名',
             'proxy.password': '代理密码（可选，如果提供了私钥则不需要）',
-            'proxy.key': 'SSH私钥（可选，base64编码，如果提供了密码则不需要）',
+            'proxy.key': 'SSH私钥（可选，上传密钥文件，如果提供了密码则不需要）',
             'proxy.keyHint': '如果提供了私钥，将优先使用私钥认证',
+            'proxy.keyFileSelected': '已选择密钥文件',
             'proxy.required': '请填写代理主机和用户名',
             'proxy.authRequired': '请提供密码或私钥用于SSH认证',
             
@@ -426,8 +428,9 @@ const i18n = {
             'proxy.port': '代理埠號',
             'proxy.user': '代理使用者名稱',
             'proxy.password': '代理密碼（可選，如果提供了私鑰則不需要）',
-            'proxy.key': 'SSH私鑰（可選，base64編碼，如果提供了密碼則不需要）',
+            'proxy.key': 'SSH私鑰（可選，上傳密鑰檔案，如果提供了密碼則不需要）',
             'proxy.keyHint': '如果提供了私鑰，將優先使用私鑰認證',
+            'proxy.keyFileSelected': '已選擇密鑰檔案',
             'proxy.required': '請填寫代理主機和使用者名稱',
             'proxy.authRequired': '請提供密碼或私鑰用於SSH認證',
             
@@ -895,6 +898,8 @@ const proxyPort = document.getElementById('proxyPort');
 const proxyUser = document.getElementById('proxyUser');
 const proxyPassword = document.getElementById('proxyPassword');
 const proxyKeyData = document.getElementById('proxyKeyData');
+const proxyKeyFile = document.getElementById('proxyKeyFile');
+const proxyKeyFileName = document.getElementById('proxyKeyFileName');
 const toggleProxyPassword = document.getElementById('toggleProxyPassword');
 const databasePanel = document.getElementById('databasePanel');
 const databaseSelect = document.getElementById('databaseSelect');
@@ -1064,6 +1069,66 @@ if (toggleProxyPassword) {
     });
 }
 
+// SSH私钥文件上传处理
+if (proxyKeyFile) {
+    proxyKeyFile.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+            if (proxyKeyFileName) {
+                proxyKeyFileName.textContent = '';
+            }
+            if (proxyKeyData) {
+                proxyKeyData.value = '';
+            }
+            return;
+        }
+        
+        // 显示文件名
+        if (proxyKeyFileName) {
+            proxyKeyFileName.textContent = `${t('proxy.keyFileSelected')}: ${file.name}`;
+        }
+        
+        try {
+            // 读取文件内容
+            const fileContent = await readFileAsText(file);
+            
+            // 加密私钥内容（使用与密码相同的加密方式）
+            const encryptedKey = encryptPassword(fileContent);
+            
+            // 存储到隐藏的 textarea（用于后续提交）
+            if (proxyKeyData) {
+                proxyKeyData.value = encryptedKey;
+            }
+        } catch (error) {
+            console.error('读取私钥文件失败:', error);
+            showNotification('读取私钥文件失败: ' + error.message, 'error');
+            if (proxyKeyFileName) {
+                proxyKeyFileName.textContent = '';
+            }
+            if (proxyKeyData) {
+                proxyKeyData.value = '';
+            }
+            if (proxyKeyFile) {
+                proxyKeyFile.value = '';
+            }
+        }
+    });
+}
+
+// 读取文件为文本的工具函数
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            resolve(e.target.result);
+        };
+        reader.onerror = (e) => {
+            reject(new Error('文件读取失败'));
+        };
+        reader.readAsText(file);
+    });
+}
+
 // 代理配置显示/隐藏
 if (useProxy) {
     useProxy.addEventListener('change', (e) => {
@@ -1138,13 +1203,33 @@ function saveConnection(connectionInfo) {
             connectionToSave.passwordEncrypted = true;
         }
         
-        // 如果使用代理，加密代理密码
-        if (connectionToSave.proxy && connectionToSave.proxy.password) {
-            connectionToSave.proxy = {
-                ...connectionToSave.proxy,
-                password: encryptPassword(connectionToSave.proxy.password),
-                passwordEncrypted: true
-            };
+        // 如果使用代理，加密代理密码和私钥
+        if (connectionToSave.proxy) {
+            const proxyConfig = { ...connectionToSave.proxy };
+            
+            // 加密代理密码
+            if (proxyConfig.password) {
+                proxyConfig.password = encryptPassword(proxyConfig.password);
+                proxyConfig.passwordEncrypted = true;
+            }
+            
+            // 处理私钥（如果存在，已经是加密后的，直接保存）
+            // 私钥存储在 config.key_data 中，已经是加密后的内容
+            if (proxyConfig.config) {
+                try {
+                    const config = JSON.parse(proxyConfig.config);
+                    if (config.key_data) {
+                        // 私钥内容已经是加密后的，直接保存
+                        proxyConfig.config = JSON.stringify({
+                            key_data: config.key_data
+                        });
+                    }
+                } catch (e) {
+                    console.warn('解析代理配置失败:', e);
+                }
+            }
+            
+            connectionToSave.proxy = proxyConfig;
         }
         
         if (existingIndex >= 0) {
@@ -1340,11 +1425,18 @@ async function connectWithSavedConnection(savedConn) {
         if (proxyPassword) proxyPassword.value = proxyPasswordValue;
         
         // 处理私钥（从config中提取）
+        // 注意：保存的私钥是加密后的，直接设置到隐藏的 textarea
+        // 文件上传框不显示（因为无法直接恢复文件），但私钥内容已经可用
         if (savedConn.proxy.config) {
             try {
                 const config = JSON.parse(savedConn.proxy.config);
                 if (config.key_data && proxyKeyData) {
+                    // 私钥内容已经加密，直接使用
                     proxyKeyData.value = config.key_data;
+                    // 显示提示：私钥已从保存的连接中加载
+                    if (proxyKeyFileName) {
+                        proxyKeyFileName.textContent = t('proxy.keyFileSelected') + ': ' + (t('connection.saved') || '已保存的连接');
+                    }
                 }
             } catch (e) {
                 console.warn('解析代理配置失败:', e);
@@ -1898,6 +1990,16 @@ if (newConnectionBtn) {
             useProxy.checked = false;
             proxyGroup.style.display = 'none';
         }
+        // 清空私钥文件选择
+        if (proxyKeyFile) {
+            proxyKeyFile.value = '';
+        }
+        if (proxyKeyFileName) {
+            proxyKeyFileName.textContent = '';
+        }
+        if (proxyKeyData) {
+            proxyKeyData.value = '';
+        }
         // 显示模态框
         if (newConnectionModal) {
             newConnectionModal.style.display = 'flex';
@@ -1995,10 +2097,11 @@ async function handleConnect() {
             config: ''
         };
         
-        // 如果提供了SSH私钥
-        if (proxyKeyData && proxyKeyData.value) {
+        // 如果提供了SSH私钥（从文件上传或保存的连接中获取）
+        // proxyKeyData 存储的是加密后的私钥内容
+        if (proxyKeyData && proxyKeyData.value && proxyKeyData.value.trim() !== '') {
             proxyConfig.config = JSON.stringify({
-                key_data: proxyKeyData.value
+                key_data: proxyKeyData.value // 已经是加密后的内容
             });
         }
         

@@ -202,6 +202,21 @@ func (c *ClickHouse) GetTableColumns(tableName string) ([]ColumnInfo, error) {
 
 // ExecuteQuery 执行查询
 func (c *ClickHouse) ExecuteQuery(query string) ([]map[string]interface{}, error) {
+	// 获取存储的当前数据库名，确保连接在正确的数据库上下文中
+	c.dbMutex.RLock()
+	currentDB := c.currentDatabase
+	c.dbMutex.RUnlock()
+
+	// 如果当前数据库已设置，在执行查询前先切换到该数据库
+	// 这样可以确保即使用户的 SQL 中没有指定数据库名，也能查询到正确的数据
+	if currentDB != "" {
+		// 使用 Exec 执行 USE 语句，确保连接在正确的数据库上下文中
+		// 注意：虽然连接池可能复用连接，但每次查询前执行 USE 可以确保正确性
+		if _, err := c.db.Exec(fmt.Sprintf("USE `%s`", currentDB)); err != nil {
+			return nil, fmt.Errorf("切换数据库上下文失败: %w", err)
+		}
+	}
+
 	rows, err := c.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("执行查询失败: %w", err)
