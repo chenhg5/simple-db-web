@@ -40,6 +40,16 @@ func (p *PostgreSQL) Close() error {
 	return nil
 }
 
+// GetTypeName 获取数据库类型名称
+func (p *PostgreSQL) GetTypeName() string {
+	return "postgresql"
+}
+
+// GetDisplayName 获取数据库显示名称
+func (p *PostgreSQL) GetDisplayName() string {
+	return "PostgreSQL"
+}
+
 // GetTables 获取所有表名
 func (p *PostgreSQL) GetTables() ([]string, error) {
 	query := `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`

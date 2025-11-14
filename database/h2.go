@@ -36,6 +36,16 @@ func (h *H2) Close() error {
 	return nil
 }
 
+// GetTypeName 获取数据库类型名称
+func (h *H2) GetTypeName() string {
+	return "h2"
+}
+
+// GetDisplayName 获取数据库显示名称
+func (h *H2) GetDisplayName() string {
+	return "H2"
+}
+
 // GetTables 获取所有表名
 func (h *H2) GetTables() ([]string, error) {
 	if h.db == nil {

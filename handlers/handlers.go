@@ -206,24 +206,24 @@ func (m *MemorySessionStorage) Close() error {
 
 // Server 服务器结构
 type Server struct {
-	templates            *template.Template
-	sessionStorage       SessionStorage                // 会话存储接口
-	sessions             map[string]*ConnectionSession // 运行时会话缓存（包含实际连接）
-	sessionsMutex        sync.RWMutex
-	customDatabases      map[string]DatabaseFactory // 自定义数据库类型
-	customDbDisplayNames map[string]string          // 自定义数据库类型的显示名称
-	customDbMutex        sync.RWMutex
-	customProxies        map[string]ProxyFactory // 自定义代理类型
-	customProxyMutex     sync.RWMutex
-	builtinTypes         map[string]string // 内置数据库类型及其显示名称
-	customScript         string            // 自定义JavaScript脚本，会在页面加载后执行
-	customScriptMutex    sync.RWMutex      // 保护customScript的读写锁
-	validators           []SQLValidator    // SQL校验器列表
-	validatorsMutex      sync.RWMutex      // 保护validators的读写锁
-	logger               Logger            // 日志记录器
-	loggerMutex          sync.RWMutex      // 保护logger的读写锁
-	presetConnections    []database.ConnectionInfo // 预设连接列表
-	presetConnectionsMutex sync.RWMutex    // 保护presetConnections的读写锁
+	templates              *template.Template
+	sessionStorage         SessionStorage                // 会话存储接口
+	sessions               map[string]*ConnectionSession // 运行时会话缓存（包含实际连接）
+	sessionsMutex          sync.RWMutex
+	customDatabases        map[string]DatabaseFactory // 自定义数据库类型
+	customDbDisplayNames   map[string]string          // 自定义数据库类型的显示名称
+	customDbMutex          sync.RWMutex
+	customProxies          map[string]ProxyFactory // 自定义代理类型
+	customProxyMutex       sync.RWMutex
+	builtinTypes           map[string]string         // 内置数据库类型及其显示名称
+	customScript           string                    // 自定义JavaScript脚本，会在页面加载后执行
+	customScriptMutex      sync.RWMutex              // 保护customScript的读写锁
+	validators             []SQLValidator            // SQL校验器列表
+	validatorsMutex        sync.RWMutex              // 保护validators的读写锁
+	logger                 Logger                    // 日志记录器
+	loggerMutex            sync.RWMutex              // 保护logger的读写锁
+	presetConnections      []database.ConnectionInfo // 预设连接列表
+	presetConnectionsMutex sync.RWMutex              // 保护presetConnections的读写锁
 }
 
 // NewServer 创建新的服务器实例
@@ -238,15 +238,7 @@ func NewServer() (*Server, error) {
 
 	// 初始化内置数据库类型
 	builtinTypes := map[string]string{
-		"mysql":      "MySQL",
-		"postgresql": "PostgreSQL",
-		"sqlite":     "SQLite",
-		"clickhouse": "ClickHouse",
-		"oceandb":    "OceanBase",
-		"oracle":     "Oracle",
-		"sqlserver":  "SQL Server",
-		"mssql":      "SQL Server",
-		"mongodb":    "MongoDB",
+		"mysql": "MySQL",
 	}
 
 	server := &Server{
@@ -290,16 +282,16 @@ func (s *Server) SetSessionStorage(storage SessionStorage) {
 }
 
 // AddDatabase 添加自定义数据库类型
-// name: 数据库类型标识（如 "custom_db"）
 // factory: 创建数据库实例的工厂函数
-func (s *Server) AddDatabase(name string, factory DatabaseFactory) {
+func (s *Server) AddDatabase(factory DatabaseFactory) {
 	s.customDbMutex.Lock()
 	defer s.customDbMutex.Unlock()
+	name := factory().GetTypeName()
 	s.customDatabases[name] = factory
+	s.customDbDisplayNames[name] = factory().GetDisplayName()
 }
 
 // AddDatabaseWithDisplayName 添加自定义数据库类型并指定显示名称
-// name: 数据库类型标识（如 "custom_db"）
 // displayName: 显示名称（如 "自定义数据库"）
 // factory: 创建数据库实例的工厂函数
 // 示例：
@@ -307,9 +299,10 @@ func (s *Server) AddDatabase(name string, factory DatabaseFactory) {
 //	server.AddDatabaseWithDisplayName("dameng", "达梦数据库", func() database.Database {
 //	    return database.NewBaseMysqlBasedDB("dameng")
 //	})
-func (s *Server) AddDatabaseWithDisplayName(name string, displayName string, factory DatabaseFactory) {
+func (s *Server) AddDatabaseWithDisplayName(displayName string, factory DatabaseFactory) {
 	s.customDbMutex.Lock()
 	defer s.customDbMutex.Unlock()
+	name := factory().GetTypeName()
 	s.customDatabases[name] = factory
 	s.customDbDisplayNames[name] = displayName
 }
@@ -564,20 +557,6 @@ func (s *Server) createDatabaseFromSessionData(data *SessionData) (database.Data
 		switch data.DbType {
 		case "mysql":
 			db = database.NewMySQL()
-		case "clickhouse":
-			db = database.NewClickHouse()
-		case "oceandb":
-			db = database.NewBaseMysqlBasedDB("oceandb")
-		case "sqlite":
-			db = database.NewSQLite3()
-		case "postgres", "postgresql":
-			db = database.NewPostgreSQL()
-		case "oracle":
-			db = database.NewOracle()
-		case "sqlserver", "mssql":
-			db = database.NewSQLServer()
-		case "mongodb":
-			db = database.NewMongoDB()
 		default:
 			return nil, fmt.Errorf("不支持的数据库类型: %s", data.DbType)
 		}
@@ -845,7 +824,7 @@ func (s *Server) GetPresetConnections() []database.ConnectionInfo {
 // GetPresetConnectionsAPI 获取预设连接列表的API端点
 func (s *Server) GetPresetConnectionsAPI(w http.ResponseWriter, r *http.Request) {
 	presetConns := s.GetPresetConnections()
-	
+
 	// 转换为前端需要的格式（与保存的连接格式一致）
 	connections := make([]map[string]interface{}, 0, len(presetConns))
 	for _, conn := range presetConns {
@@ -860,7 +839,7 @@ func (s *Server) GetPresetConnectionsAPI(w http.ResponseWriter, r *http.Request)
 			"dsn":      conn.DSN,
 			"preset":   true, // 标记为预设连接
 		}
-		
+
 		// 处理代理配置（如果存在），加密代理密码和私钥
 		if conn.Proxy != nil {
 			proxyMap := map[string]interface{}{
@@ -869,12 +848,12 @@ func (s *Server) GetPresetConnectionsAPI(w http.ResponseWriter, r *http.Request)
 				"port": conn.Proxy.Port,
 				"user": conn.Proxy.User,
 			}
-			
+
 			// 加密代理密码
 			if conn.Proxy.Password != "" {
 				proxyMap["password"] = encryptPassword(conn.Proxy.Password)
 			}
-			
+
 			// 处理私钥（如果存在）
 			if conn.Proxy.Config != "" {
 				var config map[string]interface{}
@@ -891,15 +870,15 @@ func (s *Server) GetPresetConnectionsAPI(w http.ResponseWriter, r *http.Request)
 					proxyMap["config"] = conn.Proxy.Config
 				}
 			}
-			
+
 			connMap["proxy"] = proxyMap
 		}
-		
+
 		connections = append(connections, connMap)
 	}
-	
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":    true,
+		"success":     true,
 		"connections": connections,
 	})
 }
@@ -997,21 +976,6 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 		// 使用内置数据库类型
 		switch info.Type {
 		case "mysql":
-			db = database.NewMySQL()
-		case "clickhouse":
-			db = database.NewClickHouse()
-		case "oceandb":
-			db = database.NewBaseMysqlBasedDB("oceandb")
-		case "sqlite":
-			db = database.NewSQLite3()
-		case "postgres", "postgresql":
-			db = database.NewPostgreSQL()
-		case "oracle":
-			db = database.NewOracle()
-		case "sqlserver", "mssql":
-			db = database.NewSQLServer()
-		case "mongodb":
-			db = database.NewMongoDB()
 		default:
 			writeJSONError(w, http.StatusBadRequest, ErrCodeUnsupportedDatabaseType, info.Type)
 			return
@@ -1917,7 +1881,7 @@ func (s *Server) RegisterRoutes(router Router) {
 
 	// 获取数据库类型列表
 	router.HandleFunc("/api/database/types", s.GetDatabaseTypes)
-	
+
 	// 获取预设连接列表
 	router.HandleFunc("/api/preset-connections", s.GetPresetConnectionsAPI)
 }

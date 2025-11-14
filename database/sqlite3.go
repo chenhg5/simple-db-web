@@ -41,6 +41,16 @@ func (s *SQLite3) Close() error {
 	return nil
 }
 
+// GetTypeName 获取数据库类型名称
+func (s *SQLite3) GetTypeName() string {
+	return "sqlite"
+}
+
+// GetDisplayName 获取数据库显示名称
+func (s *SQLite3) GetDisplayName() string {
+	return "SQLite3"
+}
+
 // GetTables 获取所有表名
 func (s *SQLite3) GetTables() ([]string, error) {
 	rows, err := s.db.Query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")

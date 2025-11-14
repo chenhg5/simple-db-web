@@ -87,6 +87,16 @@ func (c *ClickHouse) Close() error {
 	return nil
 }
 
+// GetTypeName 获取数据库类型名称
+func (c *ClickHouse) GetTypeName() string {
+	return "clickhouse"
+}
+
+// GetDisplayName 获取数据库显示名称
+func (c *ClickHouse) GetDisplayName() string {
+	return "ClickHouse"
+}
+
 // GetTables 获取所有表名
 func (c *ClickHouse) GetTables() ([]string, error) {
 	rows, err := c.db.Query("SELECT name FROM system.tables WHERE database = currentDatabase()")

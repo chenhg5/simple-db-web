@@ -97,6 +97,32 @@ func (m *BaseMysqlBasedDB) Close() error {
 	return nil
 }
 
+// GetTypeName 获取数据库类型名称
+func (m *BaseMysqlBasedDB) GetTypeName() string {
+	if m.dialectType != "" {
+		return "mysql_based_" + m.dialectType
+	}
+	return "mysql"
+}
+
+// GetDisplayName 获取数据库显示名称
+func (m *BaseMysqlBasedDB) GetDisplayName() string {
+	switch m.dialectType {
+	case "dameng":
+		return "达梦数据库"
+	case "openguass":
+		return "OpenGauss"
+	case "vastbase":
+		return "VastBase"
+	case "kingbase":
+		return "金仓数据库"
+	case "oceandb":
+		return "OceanDB"
+	default:
+		return "MySQL"
+	}
+}
+
 // GetTables 获取所有表名
 func (m *BaseMysqlBasedDB) GetTables() ([]string, error) {
 	return m.dialect.GetTables()

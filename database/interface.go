@@ -63,6 +63,12 @@ type Database interface {
 
 	// SwitchDatabase 切换当前使用的数据库
 	SwitchDatabase(databaseName string) error
+
+	// GetTypeName 获取数据库类型名称（如 "mysql", "postgresql" 等）
+	GetTypeName() string
+
+	// GetDisplayName 获取数据库显示名称（如 "MySQL", "PostgreSQL" 等）
+	GetDisplayName() string
 }
 
 // ColumnInfo 列信息

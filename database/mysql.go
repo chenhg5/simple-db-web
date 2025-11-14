@@ -53,6 +53,16 @@ func (m *MySQL) Close() error {
 	return nil
 }
 
+// GetTypeName 获取数据库类型名称
+func (m *MySQL) GetTypeName() string {
+	return "mysql"
+}
+
+// GetDisplayName 获取数据库显示名称
+func (m *MySQL) GetDisplayName() string {
+	return "MySQL"
+}
+
 // GetTables 获取所有表名
 func (m *MySQL) GetTables() ([]string, error) {
 	rows, err := m.db.Query("SHOW TABLES")

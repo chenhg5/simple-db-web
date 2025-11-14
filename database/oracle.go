@@ -41,6 +41,16 @@ func (o *Oracle) Close() error {
 	return nil
 }
 
+// GetTypeName 获取数据库类型名称
+func (o *Oracle) GetTypeName() string {
+	return "oracle"
+}
+
+// GetDisplayName 获取数据库显示名称
+func (o *Oracle) GetDisplayName() string {
+	return "Oracle"
+}
+
 // GetTables 获取所有表名
 func (o *Oracle) GetTables() ([]string, error) {
 	query := `SELECT table_name FROM user_tables ORDER BY table_name`

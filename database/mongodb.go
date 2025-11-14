@@ -73,6 +73,16 @@ func (m *MongoDB) Close() error {
 	return nil
 }
 
+// GetTypeName 获取数据库类型名称
+func (m *MongoDB) GetTypeName() string {
+	return "mongodb"
+}
+
+// GetDisplayName 获取数据库显示名称
+func (m *MongoDB) GetDisplayName() string {
+	return "MongoDB"
+}
+
 // GetTables 获取所有集合名（MongoDB 中表称为集合）
 func (m *MongoDB) GetTables() ([]string, error) {
 	if m.client == nil {

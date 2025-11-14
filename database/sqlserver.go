@@ -40,6 +40,16 @@ func (s *SQLServer) Close() error {
 	return nil
 }
 
+// GetTypeName 获取数据库类型名称
+func (s *SQLServer) GetTypeName() string {
+	return "sqlserver"
+}
+
+// GetDisplayName 获取数据库显示名称
+func (s *SQLServer) GetDisplayName() string {
+	return "SQL Server"
+}
+
 // GetTables 获取所有表名
 func (s *SQLServer) GetTables() ([]string, error) {
 	query := `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME`

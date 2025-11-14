@@ -20,51 +20,64 @@ func main() {
 
 	// 添加自定义数据库类型
 	// 示例1：添加一个自定义的 MySQL 变体（使用默认显示名称，即类型名）
-	server.AddDatabase("custom_mysql", func() database.Database {
+	server.AddDatabase(func() database.Database {
 		// 这里可以返回任何实现了 database.Database 接口的类型
 		// 例如：可以包装 MySQL 并添加自定义逻辑
 		return database.NewMySQL()
 	})
 
 	// 示例1.1：添加自定义数据库类型并指定显示名称
-	server.AddDatabaseWithDisplayName("custom_mysql_v2", "自定义MySQL变体", func() database.Database {
+	server.AddDatabaseWithDisplayName("自定义MySQL变体", func() database.Database {
 		return database.NewMySQL()
 	})
 
 	// 使用 AddDatabaseWithDisplayName 添加自定义数据库类型并指定显示名称
-	server.AddDatabaseWithDisplayName("mysql_based_dameng", "达梦", func() database.Database {
+	server.AddDatabase(func() database.Database {
 		return database.NewBaseMysqlBasedDB("dameng")
 	})
-	server.AddDatabaseWithDisplayName("mysql_based_openguass", "OpenGauss", func() database.Database {
+	server.AddDatabase(func() database.Database {
 		return database.NewBaseMysqlBasedDB("openguass")
 	})
-	server.AddDatabaseWithDisplayName("mysql_based_vastbase", "Vastbase", func() database.Database {
+	server.AddDatabase(func() database.Database {
 		return database.NewBaseMysqlBasedDB("vastbase")
 	})
-	server.AddDatabaseWithDisplayName("mysql_based_kingbase", "人大金仓", func() database.Database {
+	server.AddDatabase(func() database.Database {
 		return database.NewBaseMysqlBasedDB("kingbase")
+	})
+	server.AddDatabase(func() database.Database {
+		return database.NewBaseMysqlBasedDB("oceanbase")
+	})
+	server.AddDatabase(func() database.Database {
+		return database.NewClickHouse()
+	})
+	server.AddDatabase(func() database.Database {
+		return database.NewSQLite3()
+	})
+	server.AddDatabase(func() database.Database {
+		return database.NewPostgreSQL()
+	})
+	server.AddDatabase(func() database.Database {
+		return database.NewOracle()
+	})
+	server.AddDatabase(func() database.Database {
+		return database.NewSQLServer()
+	})
+	server.AddDatabase(func() database.Database {
+		return database.NewMongoDB()
 	})
 
 	presetConns := []database.ConnectionInfo{
-        {
-            Name:     "测试环境PostgreSQL",
-            Type:     "postgresql",
-            Host:     "test-db.example.com",
-            Port:     "5432",
-            User:     "testuser",
-            Password: "testpass",
-            Database: "testdb",
-        },
-    }
-    server.SetPresetConnections(presetConns)
-
-	// 示例2：添加另一个自定义数据库类型
-	// 注意：需要实现 database.Database 接口的所有方法
-	server.AddDatabase("my_custom_db", func() database.Database {
-		// 返回自定义的数据库实现
-		// 实际使用时需要完整实现 database.Database 接口
-		return database.NewMySQL() // 这里仅作示例，实际应返回自定义实现
-	})
+		{
+			Name:     "测试环境PostgreSQL",
+			Type:     "postgresql",
+			Host:     "test-db.example.com",
+			Port:     "5432",
+			User:     "testuser",
+			Password: "testpass",
+			Database: "testdb",
+		},
+	}
+	server.SetPresetConnections(presetConns)
 
 	// 注册路由
 	server.SetupRoutes()

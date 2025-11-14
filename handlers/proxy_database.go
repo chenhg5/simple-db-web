@@ -175,3 +175,10 @@ func (p *ProxyDatabaseWrapper) SwitchDatabase(databaseName string) error {
 	return p.db.Connect(newDSN)
 }
 
+func (p *ProxyDatabaseWrapper) GetTypeName() string {
+	return p.db.GetTypeName()
+}
+
+func (p *ProxyDatabaseWrapper) GetDisplayName() string {
+	return p.db.GetDisplayName()
+}
