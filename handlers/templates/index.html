@@ -155,6 +155,7 @@
                 <div class="tab-content active" id="dataTab">
                     <div class="toolbar">
                         <button class="btn btn-secondary" id="refreshData" data-i18n="common.refresh">刷新</button>
+                        <button class="btn btn-secondary" id="filterDataBtn" data-i18n="data.filter">筛选</button>
                         <button class="btn btn-secondary" id="exportDataBtn" data-i18n="data.exportExcel" style="display: none;">导出Excel</button>
                         <div class="pagination-info" id="paginationInfo"></div>
                         <div class="pagination-size-selector">
@@ -320,6 +321,34 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="clearQueryHistory" data-i18n="query.clearHistory">清空历史</button>
                 <button class="btn btn-secondary" id="closeQueryHistoryBtn" data-i18n="common.close">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选条件模态框 -->
+    <div class="modal" id="filterModal" style="display: none;">
+        <div class="modal-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 data-i18n="data.filter">筛选条件</h3>
+                <button class="modal-close" id="closeFilterModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <span data-i18n="data.filterLogic">逻辑关系:</span>
+                        <select id="filterLogic" class="form-control" style="width: auto;">
+                            <option value="AND" data-i18n="data.filterAnd">AND（所有条件都满足）</option>
+                            <option value="OR" data-i18n="data.filterOr">OR（任一条件满足）</option>
+                        </select>
+                    </label>
+                </div>
+                <div id="filterConditionsList" style="margin-bottom: 1rem;"></div>
+                <button class="btn btn-secondary" id="addFilterCondition" data-i18n="data.addFilter">+ 添加条件</button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="clearFilters" data-i18n="data.clearFilters">清除所有</button>
+                <button class="btn btn-secondary" id="cancelFilter" data-i18n="common.cancel">取消</button>
+                <button class="btn btn-primary" id="applyFilter" data-i18n="data.applyFilter">应用筛选</button>
             </div>
         </div>
     </div>

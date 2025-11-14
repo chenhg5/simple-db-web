@@ -254,22 +254,35 @@ func (h *H2) ExecuteInsert(query string) (int64, error) {
 }
 
 // GetTableData 获取表数据（分页）
-func (h *H2) GetTableData(tableName string, page, pageSize int) ([]map[string]interface{}, int64, error) {
+func (h *H2) GetTableData(tableName string, page, pageSize int, filters *FilterGroup) ([]map[string]interface{}, int64, error) {
 	if h.db == nil {
-		return nil, 0, fmt.Errorf("数据库未连接")
+		return nil, 0, fmt.Errorf("database not connected")
 	}
+	// 构建 WHERE 子句
+	whereClause, whereArgs, err := BuildWhereClause("h2", tableName, filters)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to build where clause: %w", err)
+	}
+
 	// 获取总数
 	var total int64
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", strings.ToUpper(tableName))
-	if err := h.db.QueryRow(countQuery).Scan(&total); err != nil {
+	if whereClause != "" {
+		countQuery += " WHERE " + whereClause
+	}
+	if err := h.db.QueryRow(countQuery, whereArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to query total count: %w", err)
 	}
 
 	// 获取分页数据
 	offset := (page - 1) * pageSize
-	query := fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", strings.ToUpper(tableName), pageSize, offset)
+	query := fmt.Sprintf("SELECT * FROM %s", strings.ToUpper(tableName))
+	if whereClause != "" {
+		query += " WHERE " + whereClause
+	}
+	query += fmt.Sprintf(" LIMIT %d OFFSET %d", pageSize, offset)
 
-	rows, err := h.db.Query(query)
+	rows, err := h.db.Query(query, whereArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
@@ -310,45 +323,76 @@ func (h *H2) GetTableData(tableName string, page, pageSize int) ([]map[string]in
 }
 
 // GetTableDataByID 基于主键ID获取表数据（高性能分页）
-func (h *H2) GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string) ([]map[string]interface{}, int64, interface{}, error) {
+func (h *H2) GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string, filters *FilterGroup) ([]map[string]interface{}, int64, interface{}, error) {
 	if h.db == nil {
-		return nil, 0, nil, fmt.Errorf("数据库未连接")
+		return nil, 0, nil, fmt.Errorf("database not connected")
 	}
+	// 构建 WHERE 子句
+	whereClause, whereArgs, err := BuildWhereClause("h2", tableName, filters)
+	if err != nil {
+		return nil, 0, nil, fmt.Errorf("failed to build where clause: %w", err)
+	}
+
 	// 获取总数
 	var total int64
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", strings.ToUpper(tableName))
-	if err := h.db.QueryRow(countQuery).Scan(&total); err != nil {
-		return nil, 0, nil, fmt.Errorf("查询总数失败: %w", err)
+	if whereClause != "" {
+		countQuery += " WHERE " + whereClause
+	}
+	if err := h.db.QueryRow(countQuery, whereArgs...).Scan(&total); err != nil {
+		return nil, 0, nil, fmt.Errorf("failed to query total count: %w", err)
 	}
 
 	// 构建基于ID的查询
 	var query string
 	var rows *sql.Rows
-	var err error
-
+	var queryArgs []interface{}
+	
+	// 合并过滤条件和ID条件
+	idCondition := ""
 	if direction == "prev" {
 		if lastId == nil {
 			return nil, 0, nil, fmt.Errorf("lastId is required for previous page")
 		}
-		query = fmt.Sprintf(`
-			SELECT * FROM (
-				SELECT * FROM %s WHERE %s < ? ORDER BY %s DESC LIMIT %d
-			) ORDER BY %s ASC
-		`, strings.ToUpper(tableName), strings.ToUpper(primaryKey), strings.ToUpper(primaryKey), pageSize, strings.ToUpper(primaryKey))
-		rows, err = h.db.Query(query, lastId)
+		idCondition = fmt.Sprintf("%s < ?", strings.ToUpper(primaryKey))
+		queryArgs = append(whereArgs, lastId)
 	} else {
 		if lastId == nil {
-			query = fmt.Sprintf(`
-				SELECT * FROM %s ORDER BY %s ASC LIMIT %d
-			`, strings.ToUpper(tableName), strings.ToUpper(primaryKey), pageSize)
-			rows, err = h.db.Query(query)
+			idCondition = ""
+			queryArgs = whereArgs
 		} else {
-			query = fmt.Sprintf(`
-				SELECT * FROM %s WHERE %s > ? ORDER BY %s ASC LIMIT %d
-			`, strings.ToUpper(tableName), strings.ToUpper(primaryKey), strings.ToUpper(primaryKey), pageSize)
-			rows, err = h.db.Query(query, lastId)
+			idCondition = fmt.Sprintf("%s > ?", strings.ToUpper(primaryKey))
+			queryArgs = append(whereArgs, lastId)
 		}
 	}
+
+	// 合并所有WHERE条件
+	allConditions := []string{}
+	if whereClause != "" {
+		allConditions = append(allConditions, whereClause)
+	}
+	if idCondition != "" {
+		allConditions = append(allConditions, idCondition)
+	}
+
+	wherePart := ""
+	if len(allConditions) > 0 {
+		wherePart = " WHERE " + strings.Join(allConditions, " AND ")
+	}
+
+	if direction == "prev" {
+		query = fmt.Sprintf(`
+			SELECT * FROM (
+				SELECT * FROM %s%s ORDER BY %s DESC LIMIT %d
+			) ORDER BY %s ASC
+		`, strings.ToUpper(tableName), wherePart, strings.ToUpper(primaryKey), pageSize, strings.ToUpper(primaryKey))
+	} else {
+		query = fmt.Sprintf(`
+			SELECT * FROM %s%s ORDER BY %s ASC LIMIT %d
+		`, strings.ToUpper(tableName), wherePart, strings.ToUpper(primaryKey), pageSize)
+	}
+	
+	rows, err = h.db.Query(query, queryArgs...)
 
 	if err != nil {
 		return nil, 0, nil, fmt.Errorf("查询数据失败: %w", err)

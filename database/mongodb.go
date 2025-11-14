@@ -349,7 +349,7 @@ func (m *MongoDB) ExecuteInsert(query string) (int64, error) {
 }
 
 // GetTableData 获取集合数据（分页）
-func (m *MongoDB) GetTableData(tableName string, page, pageSize int) ([]map[string]interface{}, int64, error) {
+func (m *MongoDB) GetTableData(tableName string, page, pageSize int, filters *FilterGroup) ([]map[string]interface{}, int64, error) {
 	if m.client == nil {
 		return nil, 0, fmt.Errorf("database not connected")
 	}
@@ -359,8 +359,14 @@ func (m *MongoDB) GetTableData(tableName string, page, pageSize int) ([]map[stri
 
 	collection := m.database.Collection(tableName)
 
+	// 将过滤条件转换为 MongoDB 查询
+	filter := bson.M{}
+	if filters != nil && len(filters.Conditions) > 0 {
+		filter = convertFiltersToMongoDB(filters)
+	}
+
 	// 获取总数
-	total, err := collection.CountDocuments(m.ctx, bson.M{})
+	total, err := collection.CountDocuments(m.ctx, filter)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query total count: %w", err)
 	}
@@ -370,7 +376,7 @@ func (m *MongoDB) GetTableData(tableName string, page, pageSize int) ([]map[stri
 	limit := int64(pageSize)
 
 	opts := options.Find().SetSkip(skip).SetLimit(limit)
-	cursor, err := collection.Find(m.ctx, bson.M{}, opts)
+	cursor, err := collection.Find(m.ctx, filter, opts)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
@@ -397,8 +403,101 @@ func (m *MongoDB) GetTableData(tableName string, page, pageSize int) ([]map[stri
 	return results, total, cursor.Err()
 }
 
+// convertFiltersToMongoDB 将 FilterGroup 转换为 MongoDB 查询条件
+func convertFiltersToMongoDB(filters *FilterGroup) bson.M {
+	if filters == nil || len(filters.Conditions) == 0 {
+		return bson.M{}
+	}
+
+	// 确定逻辑关系（默认为 AND）
+	logic := strings.ToUpper(filters.Logic)
+	if logic != "AND" && logic != "OR" {
+		logic = "AND"
+	}
+
+	conditions := []bson.M{}
+	for _, condition := range filters.Conditions {
+		if condition.Field == "" {
+			continue
+		}
+
+		operator := strings.ToUpper(strings.TrimSpace(condition.Operator))
+		
+		switch operator {
+		case "=":
+			conditions = append(conditions, bson.M{condition.Field: condition.Value})
+		case "!=":
+			conditions = append(conditions, bson.M{condition.Field: bson.M{"$ne": condition.Value}})
+		case "<":
+			conditions = append(conditions, bson.M{condition.Field: bson.M{"$lt": condition.Value}})
+		case ">":
+			conditions = append(conditions, bson.M{condition.Field: bson.M{"$gt": condition.Value}})
+		case "<=":
+			conditions = append(conditions, bson.M{condition.Field: bson.M{"$lte": condition.Value}})
+		case ">=":
+			conditions = append(conditions, bson.M{condition.Field: bson.M{"$gte": condition.Value}})
+		case "LIKE":
+			// MongoDB 使用正则表达式实现 LIKE
+			pattern := strings.ReplaceAll(condition.Value, "%", ".*")
+			pattern = strings.ReplaceAll(pattern, "_", ".")
+			conditions = append(conditions, bson.M{condition.Field: bson.M{"$regex": pattern, "$options": "i"}})
+		case "NOT LIKE":
+			pattern := strings.ReplaceAll(condition.Value, "%", ".*")
+			pattern = strings.ReplaceAll(pattern, "_", ".")
+			conditions = append(conditions, bson.M{condition.Field: bson.M{"$not": bson.M{"$regex": pattern, "$options": "i"}}})
+		case "IN":
+			values := condition.Values
+			if len(values) == 0 && condition.Value != "" {
+				values = strings.Split(condition.Value, ",")
+				for i := range values {
+					values[i] = strings.TrimSpace(values[i])
+				}
+			}
+			if len(values) > 0 {
+				conditions = append(conditions, bson.M{condition.Field: bson.M{"$in": values}})
+			}
+		case "NOT IN":
+			values := condition.Values
+			if len(values) == 0 && condition.Value != "" {
+				values = strings.Split(condition.Value, ",")
+				for i := range values {
+					values[i] = strings.TrimSpace(values[i])
+				}
+			}
+			if len(values) > 0 {
+				conditions = append(conditions, bson.M{condition.Field: bson.M{"$nin": values}})
+			}
+		case "IS NULL":
+			conditions = append(conditions, bson.M{condition.Field: nil})
+		case "IS NOT NULL":
+			conditions = append(conditions, bson.M{condition.Field: bson.M{"$ne": nil}})
+		default:
+			// 默认使用 = 操作符
+			if condition.Value != "" {
+				conditions = append(conditions, bson.M{condition.Field: condition.Value})
+			}
+		}
+	}
+
+	if len(conditions) == 0 {
+		return bson.M{}
+	}
+
+	if logic == "OR" {
+		return bson.M{"$or": conditions}
+	}
+	// AND 逻辑：合并所有条件
+	result := bson.M{}
+	for _, cond := range conditions {
+		for k, v := range cond {
+			result[k] = v
+		}
+	}
+	return result
+}
+
 // GetTableDataByID 基于主键ID获取表数据（高性能分页）
-func (m *MongoDB) GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string) ([]map[string]interface{}, int64, interface{}, error) {
+func (m *MongoDB) GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string, filters *FilterGroup) ([]map[string]interface{}, int64, interface{}, error) {
 	if m.client == nil {
 		return nil, 0, nil, fmt.Errorf("数据库未连接")
 	}
@@ -408,19 +507,49 @@ func (m *MongoDB) GetTableDataByID(tableName string, primaryKey string, lastId i
 
 	collection := m.database.Collection(tableName)
 
-	// 获取总数
-	total, err := collection.CountDocuments(m.ctx, bson.M{})
-	if err != nil {
-		return nil, 0, nil, fmt.Errorf("查询总数失败: %w", err)
-	}
-
 	// MongoDB 使用 _id 作为主键
 	if primaryKey == "" {
 		primaryKey = "_id"
 	}
 
+	// 将过滤条件转换为 MongoDB 查询
+	filter := bson.M{}
+	if filters != nil && len(filters.Conditions) > 0 {
+		filter = convertFiltersToMongoDB(filters)
+	}
+
+	// 合并ID条件
+	idFilter := bson.M{}
+	if direction == "prev" {
+		if lastId == nil {
+			return nil, 0, nil, fmt.Errorf("lastId is required for previous page")
+		}
+		idFilter[primaryKey] = bson.M{"$lt": lastId}
+	} else {
+		if lastId != nil {
+			idFilter[primaryKey] = bson.M{"$gt": lastId}
+		}
+	}
+
+	// 合并所有过滤条件
+	if len(idFilter) > 0 {
+		if len(filter) > 0 {
+			// 合并两个过滤器（AND 逻辑）
+			for k, v := range idFilter {
+				filter[k] = v
+			}
+		} else {
+			filter = idFilter
+		}
+	}
+
+	// 获取总数
+	total, err := collection.CountDocuments(m.ctx, filter)
+	if err != nil {
+		return nil, 0, nil, fmt.Errorf("failed to query total count: %w", err)
+	}
+
 	// 构建查询条件
-	var filter bson.M
 	var sort bson.M
 
 	if direction == "prev" {

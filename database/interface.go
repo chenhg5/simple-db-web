@@ -36,7 +36,8 @@ type Database interface {
 	// tableName: 表名
 	// page: 页码（从1开始）
 	// pageSize: 每页大小
-	GetTableData(tableName string, page, pageSize int) ([]map[string]interface{}, int64, error)
+	// filters: 过滤条件（可选，nil表示不过滤）
+	GetTableData(tableName string, page, pageSize int, filters *FilterGroup) ([]map[string]interface{}, int64, error)
 
 	// GetTableDataByID 基于主键ID获取表数据（高性能分页）
 	// tableName: 表名
@@ -44,8 +45,9 @@ type Database interface {
 	// lastId: 上一页的最后一个ID值（nil表示第一页，用于next方向）或当前页的第一个ID（用于prev方向）
 	// pageSize: 每页大小
 	// direction: 分页方向，"next"表示下一页（id > lastId），"prev"表示上一页（id < lastId）
+	// filters: 过滤条件（可选，nil表示不过滤）
 	// 返回: 数据列表, 总数, 下一页/上一页的最后一个ID, 错误
-	GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string) ([]map[string]interface{}, int64, interface{}, error)
+	GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string, filters *FilterGroup) ([]map[string]interface{}, int64, interface{}, error)
 	
 	// GetPageIdByPageNumber 根据页码计算该页的起始ID（用于页码跳转）
 	// tableName: 表名
@@ -102,4 +104,18 @@ type ConnectionInfo struct {
 	Database string       `json:"database"` // 数据库名
 	DSN      string       `json:"dsn"`      // 如果提供DSN，则优先使用
 	Proxy    *ProxyConfig `json:"proxy"`    // 代理配置（可选）
+}
+
+// FilterCondition 过滤条件
+type FilterCondition struct {
+	Field    string   `json:"field"`    // 字段名
+	Operator string   `json:"operator"` // 操作符：=, !=, <, >, <=, >=, LIKE, NOT LIKE, IN, NOT IN, IS NULL, IS NOT NULL
+	Value    string   `json:"value"`     // 值（对于 IN/NOT IN，使用逗号分隔的多个值）
+	Values   []string `json:"values"`   // 值数组（用于 IN/NOT IN，如果提供则优先使用）
+}
+
+// FilterGroup 过滤条件组（支持 AND/OR 逻辑）
+type FilterGroup struct {
+	Conditions []FilterCondition `json:"conditions"` // 过滤条件列表
+	Logic      string            `json:"logic"`      // 逻辑关系：AND 或 OR，默认为 AND
 }

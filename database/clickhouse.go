@@ -285,7 +285,7 @@ func (c *ClickHouse) ExecuteInsert(query string) (int64, error) {
 }
 
 // GetTableData 获取表数据（ClickHouse 不支持分页，只返回10条数据）
-func (c *ClickHouse) GetTableData(tableName string, page, pageSize int) ([]map[string]interface{}, int64, error) {
+func (c *ClickHouse) GetTableData(tableName string, page, pageSize int, filters *FilterGroup) ([]map[string]interface{}, int64, error) {
 	// ClickHouse 不支持分页，只返回10条数据
 	// 注意：total 返回 -1 表示不支持计数
 
@@ -295,13 +295,23 @@ func (c *ClickHouse) GetTableData(tableName string, page, pageSize int) ([]map[s
 	c.dbMutex.RUnlock()
 
 	if currentDB == "" {
-		return nil, 0, fmt.Errorf("当前数据库未设置")
+		return nil, 0, fmt.Errorf("database not set")
+	}
+
+	// 构建 WHERE 子句
+	whereClause, whereArgs, err := BuildWhereClause("clickhouse", tableName, filters)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to build where clause: %w", err)
 	}
 
 	// 使用 database.table 格式确保查询正确的数据库
-	query := fmt.Sprintf("SELECT * FROM `%s`.`%s` LIMIT 10", currentDB, tableName)
+	query := fmt.Sprintf("SELECT * FROM `%s`.`%s`", currentDB, tableName)
+	if whereClause != "" {
+		query += " WHERE " + whereClause
+	}
+	query += " LIMIT 10"
 
-	rows, err := c.db.Query(query)
+	rows, err := c.db.Query(query, whereArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query data: %w", err)
 	}
@@ -343,7 +353,7 @@ func (c *ClickHouse) GetTableData(tableName string, page, pageSize int) ([]map[s
 }
 
 // GetTableDataByID 基于主键ID获取表数据（ClickHouse不支持，返回错误）
-func (c *ClickHouse) GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string) ([]map[string]interface{}, int64, interface{}, error) {
+func (c *ClickHouse) GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string, filters *FilterGroup) ([]map[string]interface{}, int64, interface{}, error) {
 	return nil, 0, nil, fmt.Errorf("ClickHouse does not support ID-based pagination")
 }
 

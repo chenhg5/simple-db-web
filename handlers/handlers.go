@@ -1224,6 +1224,27 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 		pageSize = 50
 	}
 
+	// 解析过滤条件（从请求体或查询参数中获取）
+	var filters *database.FilterGroup = nil
+	if r.Method == "POST" {
+		// POST 请求：从请求体中解析 JSON
+		var reqBody struct {
+			Filters *database.FilterGroup `json:"filters"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err == nil && reqBody.Filters != nil {
+			filters = reqBody.Filters
+		}
+	} else {
+		// GET 请求：从查询参数中解析 JSON 字符串
+		filtersStr := r.URL.Query().Get("filters")
+		if filtersStr != "" {
+			var f database.FilterGroup
+			if err := json.Unmarshal([]byte(filtersStr), &f); err == nil {
+				filters = &f
+			}
+		}
+	}
+
 	// 获取lastId参数（用于基于ID的分页）
 	lastIdStr := r.URL.Query().Get("lastId")
 	var lastId interface{} = nil
@@ -1291,15 +1312,15 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 	if useIdBasedPagination {
 		// 使用基于ID的分页
 		// direction: "next"表示下一页（id > lastId），"prev"表示上一页（id < lastId）
-		data, total, nextId, err = session.db.GetTableDataByID(tableName, primaryKeyName, lastId, pageSize, direction)
+		data, total, nextId, err = session.db.GetTableDataByID(tableName, primaryKeyName, lastId, pageSize, direction, filters)
 		if err != nil {
 			// 如果基于ID的分页失败，回退到传统分页
-			data, total, err = session.db.GetTableData(tableName, page, pageSize)
+			data, total, err = session.db.GetTableData(tableName, page, pageSize, filters)
 			useIdBasedPagination = false
 		}
 	} else {
 		// 使用传统OFFSET/LIMIT分页
-		data, total, err = session.db.GetTableData(tableName, page, pageSize)
+		data, total, err = session.db.GetTableData(tableName, page, pageSize, filters)
 	}
 
 	if err != nil {

@@ -88,6 +88,19 @@ const i18n = {
             'data.copySchemaTitle': 'Copy Schema',
             'data.exportExcel': 'Export to Excel',
             'data.exportSuccess': 'Export successful',
+            'data.filter': 'Filter',
+            'data.filterLogic': 'Logic',
+            'data.filterAnd': 'AND (all conditions must be met)',
+            'data.filterOr': 'OR (any condition can be met)',
+            'data.addFilter': '+ Add Condition',
+            'data.clearFilters': 'Clear All',
+            'data.applyFilter': 'Apply Filter',
+            'data.filterField': 'Field',
+            'data.filterOperator': 'Operator',
+            'data.filterValue': 'Value',
+            'data.removeFilter': 'Remove',
+            'data.filterActive': 'Filter Active',
+            'data.clearFilter': 'Clear Filter',
             
             // SQL查询
             'query.placeholder': 'Enter SQL query...',
@@ -309,6 +322,21 @@ const i18n = {
             'data.copySchemaTitle': '复制结构',
             'data.exportExcel': '导出Excel',
             'data.exportSuccess': '导出成功',
+            'data.filter': '筛选',
+            'data.filterLogic': '逻辑关系',
+            'data.filterAnd': 'AND（所有条件都满足）',
+            'data.filterOr': 'OR（任一条件满足）',
+            'data.addFilter': '+ 添加条件',
+            'data.clearFilters': '清除所有',
+            'data.applyFilter': '应用筛选',
+            'data.filterField': '字段',
+            'data.filterOperator': '操作符',
+            'data.filterValue': '值',
+            'data.removeFilter': '删除',
+            'data.filterActive': '筛选已启用',
+            'data.clearFilter': '清除筛选',
+            'data.noFilters': '暂无筛选条件',
+            'data.noValueNeeded': '无需值',
             
             // SQL查询
             'query.placeholder': '输入SQL查询...',
@@ -538,6 +566,21 @@ const i18n = {
             'data.copySchemaTitle': '複製結構',
             'data.exportExcel': '匯出Excel',
             'data.exportSuccess': '匯出成功',
+            'data.filter': '篩選',
+            'data.filterLogic': '邏輯關係',
+            'data.filterAnd': 'AND（所有條件都滿足）',
+            'data.filterOr': 'OR（任一條件滿足）',
+            'data.addFilter': '+ 新增條件',
+            'data.clearFilters': '清除所有',
+            'data.applyFilter': '套用篩選',
+            'data.filterField': '欄位',
+            'data.filterOperator': '運算子',
+            'data.filterValue': '值',
+            'data.removeFilter': '刪除',
+            'data.filterActive': '篩選已啟用',
+            'data.clearFilter': '清除篩選',
+            'data.noFilters': '暫無篩選條件',
+            'data.noValueNeeded': '無需值',
             
             // SQL查询
             'query.placeholder': '輸入SQL查詢...',
@@ -1053,9 +1096,18 @@ const dataTableHead = document.getElementById('dataTableHead');
 const dataTableBody = document.getElementById('dataTableBody');
 const refreshData = document.getElementById('refreshData');
 const exportDataBtn = document.getElementById('exportDataBtn');
+const filterDataBtn = document.getElementById('filterDataBtn');
 const pagination = document.getElementById('pagination');
 const paginationInfo = document.getElementById('paginationInfo');
 const pageSizeSelect = document.getElementById('pageSizeSelect');
+const filterModal = document.getElementById('filterModal');
+const closeFilterModal = document.getElementById('closeFilterModal');
+const cancelFilter = document.getElementById('cancelFilter');
+const applyFilter = document.getElementById('applyFilter');
+const addFilterCondition = document.getElementById('addFilterCondition');
+const filterConditionsList = document.getElementById('filterConditionsList');
+const filterLogic = document.getElementById('filterLogic');
+const clearFilters = document.getElementById('clearFilters');
 const schemaContent = document.getElementById('schemaContent');
 const copySchemaBtn = document.getElementById('copySchemaBtn');
 const sqlQuery = document.getElementById('sqlQuery');
@@ -2386,6 +2438,104 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化CodeMirror编辑器
     initCodeMirror();
     
+    // 初始化筛选管理器
+    if (typeof filterManager !== 'undefined') {
+        filterManager.render();
+    }
+    
+    // 筛选按钮事件
+    const filterDataBtn = document.getElementById('filterDataBtn');
+    const filterModal = document.getElementById('filterModal');
+    const closeFilterModal = document.getElementById('closeFilterModal');
+    const cancelFilter = document.getElementById('cancelFilter');
+    const applyFilter = document.getElementById('applyFilter');
+    const addFilterCondition = document.getElementById('addFilterCondition');
+    const clearFilters = document.getElementById('clearFilters');
+    const filterLogic = document.getElementById('filterLogic');
+    
+    if (filterDataBtn) {
+        filterDataBtn.addEventListener('click', () => {
+            if (filterModal) {
+                filterModal.style.display = 'flex';
+                // 加载当前过滤条件
+                if (currentFilters) {
+                    filterManager.load(currentFilters);
+                } else {
+                    filterManager.clear();
+                }
+                // 更新可用列
+                filterManager.render();
+            }
+        });
+        
+        // 双击清除筛选
+        filterDataBtn.addEventListener('dblclick', () => {
+            currentFilters = null;
+            filterManager.clear();
+            updateFilterButton();
+            loadTableData();
+        });
+    }
+    
+    if (closeFilterModal) {
+        closeFilterModal.addEventListener('click', () => {
+            if (filterModal) {
+                filterModal.style.display = 'none';
+            }
+        });
+    }
+    
+    if (cancelFilter) {
+        cancelFilter.addEventListener('click', () => {
+            if (filterModal) {
+                filterModal.style.display = 'none';
+            }
+        });
+    }
+    
+    if (applyFilter) {
+        applyFilter.addEventListener('click', () => {
+            const filters = filterManager.getFilters();
+            currentFilters = filters;
+            updateFilterButton();
+            if (filterModal) {
+                filterModal.style.display = 'none';
+            }
+            // 重置到第一页并重新加载数据
+            currentPage = 1;
+            loadTableData();
+        });
+    }
+    
+    if (addFilterCondition) {
+        addFilterCondition.addEventListener('click', () => {
+            filterManager.addCondition();
+        });
+    }
+    
+    if (clearFilters) {
+        clearFilters.addEventListener('click', () => {
+            filterManager.clear();
+            currentFilters = null;
+            updateFilterButton();
+        });
+    }
+    
+    if (filterLogic) {
+        filterLogic.addEventListener('change', (e) => {
+            filterManager.logic = e.target.value;
+        });
+    }
+    
+    // 点击模态框背景关闭
+    if (filterModal) {
+        filterModal.addEventListener('click', (e) => {
+            if (e.target === filterModal) {
+                filterModal.style.display = 'none';
+            }
+        });
+    }
+    
     // 恢复连接
     restoreConnection();
 });
@@ -3075,6 +3225,12 @@ async function selectTable(tableName) {
     pageIdMap.clear();
     idHistory = [];
     maxVisitedPage = 0;
+    // 清除过滤条件（切换表时重置筛选）
+    currentFilters = null;
+    if (typeof filterManager !== 'undefined') {
+        filterManager.clear();
+        updateFilterButton();
+    }
     
     // 切换到数据标签页
     switchTab('data');
@@ -3087,6 +3243,233 @@ async function selectTable(tableName) {
 
 // 存储列信息（用于排序）
 let currentColumns = [];
+
+// 存储当前过滤条件
+let currentFilters = null;
+
+// 筛选条件管理
+const filterManager = {
+    conditions: [],
+    logic: 'AND',
+    
+    // 添加条件
+    addCondition() {
+        this.conditions.push({
+            field: '',
+            operator: '=',
+            value: '',
+            values: []
+        });
+        this.render();
+    },
+    
+    // 删除条件
+    removeCondition(index) {
+        this.conditions.splice(index, 1);
+        this.render();
+    },
+    
+    // 更新条件
+    updateCondition(index, field, operator, value, values) {
+        if (this.conditions[index]) {
+            this.conditions[index].field = field || '';
+            this.conditions[index].operator = operator || '=';
+            this.conditions[index].value = value || '';
+            this.conditions[index].values = values || [];
+        }
+    },
+    
+    // 渲染条件列表
+    render() {
+        const filterConditionsList = document.getElementById('filterConditionsList');
+        const filterLogic = document.getElementById('filterLogic');
+        
+        if (!filterConditionsList) return;
+        
+        filterConditionsList.innerHTML = '';
+        
+        if (filterLogic) {
+            filterLogic.value = this.logic;
+        }
+        
+        if (this.conditions.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.style.cssText = 'padding: 1rem; color: var(--text-secondary); text-align: center; font-size: 0.875rem;';
+            emptyMsg.textContent = t('data.noFilters') || '暂无筛选条件';
+            filterConditionsList.appendChild(emptyMsg);
+            return;
+        }
+        
+        this.conditions.forEach((condition, index) => {
+            const conditionDiv = document.createElement('div');
+            conditionDiv.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; padding: 0.75rem; background: var(--surface); border-radius: 4px; border: 1px solid var(--border-color);';
+            
+            // 字段选择
+            const fieldSelect = document.createElement('select');
+            fieldSelect.className = 'form-control';
+            fieldSelect.style.cssText = 'flex: 1;';
+            fieldSelect.innerHTML = '<option value="">' + (t('data.filterField') || '字段') + '</option>';
+            currentColumns.forEach(col => {
+                const option = document.createElement('option');
+                option.value = col;
+                option.textContent = col;
+                if (condition.field === col) {
+                    option.selected = true;
+                }
+                fieldSelect.appendChild(option);
+            });
+            fieldSelect.addEventListener('change', (e) => {
+                this.updateCondition(index, e.target.value, condition.operator, condition.value, condition.values);
+            });
+            
+            // 操作符选择
+            const operatorSelect = document.createElement('select');
+            operatorSelect.className = 'form-control';
+            operatorSelect.style.cssText = 'width: 120px;';
+            const operators = [
+                { value: '=', label: '=' },
+                { value: '!=', label: '!=' },
+                { value: '<', label: '<' },
+                { value: '>', label: '>' },
+                { value: '<=', label: '<=' },
+                { value: '>=', label: '>=' },
+                { value: 'LIKE', label: 'LIKE' },
+                { value: 'NOT LIKE', label: 'NOT LIKE' },
+                { value: 'IN', label: 'IN' },
+                { value: 'NOT IN', label: 'NOT IN' },
+                { value: 'IS NULL', label: 'IS NULL' },
+                { value: 'IS NOT NULL', label: 'IS NOT NULL' }
+            ];
+            operators.forEach(op => {
+                const option = document.createElement('option');
+                option.value = op.value;
+                option.textContent = op.label;
+                if (condition.operator === op.value) {
+                    option.selected = true;
+                }
+                operatorSelect.appendChild(option);
+            });
+            operatorSelect.addEventListener('change', (e) => {
+                this.updateCondition(index, condition.field, e.target.value, condition.value, condition.values);
+                this.render(); // 重新渲染以更新值输入框
+            });
+            
+            // 值输入（对于 IN/NOT IN 使用多行输入，对于 IS NULL/IS NOT NULL 不显示）
+            const valueContainer = document.createElement('div');
+            valueContainer.style.cssText = 'flex: 1;';
+            const operator = condition.operator || '=';
+            if (operator === 'IS NULL' || operator === 'IS NOT NULL') {
+                valueContainer.innerHTML = '<span style="color: var(--text-secondary); font-size: 0.875rem;">' + (t('data.noValueNeeded') || '无需值') + '</span>';
+            } else if (operator === 'IN' || operator === 'NOT IN') {
+                const valueTextarea = document.createElement('textarea');
+                valueTextarea.className = 'form-control';
+                valueTextarea.style.cssText = 'min-height: 60px; font-size: 0.875rem;';
+                valueTextarea.placeholder = (t('data.filterValue') || '值') + ' (每行一个值或逗号分隔)';
+                valueTextarea.value = condition.values.length > 0 ? condition.values.join('\n') : condition.value;
+                valueTextarea.addEventListener('change', (e) => {
+                    const values = e.target.value.split(/[\n,]/).map(v => v.trim()).filter(v => v);
+                    this.updateCondition(index, condition.field, condition.operator, '', values);
+                });
+                valueContainer.appendChild(valueTextarea);
+            } else {
+                const valueInput = document.createElement('input');
+                valueInput.type = 'text';
+                valueInput.className = 'form-control';
+                valueInput.value = condition.value || '';
+                valueInput.placeholder = t('data.filterValue') || '值';
+                valueInput.addEventListener('change', (e) => {
+                    this.updateCondition(index, condition.field, condition.operator, e.target.value, []);
+                });
+                valueContainer.appendChild(valueInput);
+            }
+            
+            // 删除按钮
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn btn-danger';
+            removeBtn.style.cssText = 'flex-shrink: 0; padding: 0.5rem 0.75rem; font-size: 0.875rem;';
+            removeBtn.textContent = t('data.removeFilter') || '删除';
+            removeBtn.addEventListener('click', () => {
+                this.removeCondition(index);
+            });
+            
+            conditionDiv.appendChild(fieldSelect);
+            conditionDiv.appendChild(operatorSelect);
+            conditionDiv.appendChild(valueContainer);
+            conditionDiv.appendChild(removeBtn);
+            filterConditionsList.appendChild(conditionDiv);
+        });
+    },
+    
+    // 获取过滤条件对象
+    getFilters() {
+        if (this.conditions.length === 0) {
+            return null;
+        }
+        
+        // 过滤掉空字段的条件
+        const validConditions = this.conditions.filter(c => c.field && c.field.trim() !== '');
+        if (validConditions.length === 0) {
+            return null;
+        }
+        
+        return {
+            conditions: validConditions.map(c => ({
+                field: c.field,
+                operator: c.operator,
+                value: c.value,
+                values: c.values
+            })),
+            logic: this.logic
+        };
+    },
+    
+    // 清除所有条件
+    clear() {
+        this.conditions = [];
+        this.logic = 'AND';
+        const filterLogic = document.getElementById('filterLogic');
+        if (filterLogic) {
+            filterLogic.value = 'AND';
+        }
+        this.render();
+    },
+    
+    // 加载条件
+    load(filters) {
+        if (!filters || !filters.conditions || filters.conditions.length === 0) {
+            this.clear();
+            return;
+        }
+        
+        this.conditions = filters.conditions.map(c => ({
+            field: c.field || '',
+            operator: c.operator || '=',
+            value: c.value || '',
+            values: c.values || []
+        }));
+        this.logic = filters.logic || 'AND';
+        const filterLogic = document.getElementById('filterLogic');
+        if (filterLogic) {
+            filterLogic.value = this.logic;
+        }
+        this.render();
+    }
+};
+
+// 更新筛选按钮状态
+function updateFilterButton() {
+    const filterDataBtn = document.getElementById('filterDataBtn');
+    if (!filterDataBtn) return;
+    
+    const hasFilters = currentFilters && currentFilters.conditions && currentFilters.conditions.length > 0;
+    if (hasFilters) {
+        filterDataBtn.classList.add('active');
+        filterDataBtn.title = t('data.filterActive') || '筛选已激活';
+    } else {
+        filterDataBtn.classList.remove('active');
+        filterDataBtn.title = t('data.filter') || '筛选';
+    }
+}
 
 // 加载表数据
 async function loadTableData() {
@@ -3112,6 +3495,14 @@ async function loadTableData() {
         
         // 构建请求URL
         let url = `${API_BASE}/table/data?table=${currentTable}&page=${currentPage}&pageSize=${pageSize}`;
+        
+        // 添加过滤条件（如果有）
+        if (currentFilters && currentFilters.conditions && currentFilters.conditions.length > 0) {
+            // 将过滤条件编码为 JSON 字符串
+            const filtersStr = encodeURIComponent(JSON.stringify(currentFilters));
+            url += `&filters=${filtersStr}`;
+        }
+        
         // 如果使用基于ID的分页，添加lastId和direction参数
         if (useIdPagination) {
             // 判断方向：

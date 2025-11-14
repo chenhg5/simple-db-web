@@ -111,12 +111,12 @@ func (p *ProxyDatabaseWrapper) ExecuteInsert(query string) (int64, error) {
 	return p.db.ExecuteInsert(query)
 }
 
-func (p *ProxyDatabaseWrapper) GetTableData(tableName string, page, pageSize int) ([]map[string]interface{}, int64, error) {
-	return p.db.GetTableData(tableName, page, pageSize)
+func (p *ProxyDatabaseWrapper) GetTableData(tableName string, page, pageSize int, filters *database.FilterGroup) ([]map[string]interface{}, int64, error) {
+	return p.db.GetTableData(tableName, page, pageSize, filters)
 }
 
-func (p *ProxyDatabaseWrapper) GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string) ([]map[string]interface{}, int64, interface{}, error) {
-	return p.db.GetTableDataByID(tableName, primaryKey, lastId, pageSize, direction)
+func (p *ProxyDatabaseWrapper) GetTableDataByID(tableName string, primaryKey string, lastId interface{}, pageSize int, direction string, filters *database.FilterGroup) ([]map[string]interface{}, int64, interface{}, error) {
+	return p.db.GetTableDataByID(tableName, primaryKey, lastId, pageSize, direction, filters)
 }
 
 func (p *ProxyDatabaseWrapper) GetPageIdByPageNumber(tableName string, primaryKey string, page, pageSize int) (interface{}, error) {

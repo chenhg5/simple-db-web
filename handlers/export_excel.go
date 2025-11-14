@@ -40,8 +40,8 @@ func (s *Server) ExportTableDataToExcel(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 获取数据
-	data, _, err := session.db.GetTableData(tableName, page, pageSize)
+	// 获取数据（导出时不使用过滤条件）
+	data, _, err := session.db.GetTableData(tableName, page, pageSize, nil)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, ErrCodeGetTableDataFailed, err)
 		return
