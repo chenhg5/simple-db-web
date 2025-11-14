@@ -4251,7 +4251,8 @@ function displayTableData(rows, total, isClickHouse = false) {
         const headRow = document.createElement('tr');
         columns.forEach(col => {
             const th = document.createElement('th');
-            th.style.cssText = 'cursor: pointer; user-select: none; position: relative; padding-right: 1.5rem;';
+            // 保留sticky定位以保持表头固定，同时添加排序相关样式
+            th.style.cssText = 'cursor: pointer; user-select: none; position: sticky; top: 0; padding-right: 1.5rem;';
             th.className = 'sortable-header';
             th.dataset.field = col;
             
@@ -4301,6 +4302,8 @@ function displayTableData(rows, total, isClickHouse = false) {
         if (!isClickHouse) {
             const actionTh = document.createElement('th');
             actionTh.className = 'action-column-header';
+            // 确保操作列表头也保持固定（CSS中已定义，这里确保样式不被覆盖）
+            actionTh.style.cssText = '';
             actionTh.textContent = t('common.operation');
             headRow.appendChild(actionTh);
         }
