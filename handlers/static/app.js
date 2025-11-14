@@ -1350,15 +1350,19 @@ function loadSavedConnections() {
             displayText = conn.name;
         } else {
             // 否则使用原来的格式
-        if (conn.dsn) {
-            // DSN 模式
-            const userMatch = conn.dsn.match(/^([^:]+):/);
-            const hostMatch = conn.dsn.match(/@tcp\(([^:]+)/);
-            const user = userMatch ? userMatch[1] : 'unknown';
-            const host = hostMatch ? hostMatch[1] : 'unknown';
-            displayText = `${conn.type || 'mysql'}://${user}@${host}`;
-        } else {
-            displayText = `${conn.type || 'mysql'}://${conn.user || 'unknown'}@${conn.host || 'unknown'}:${conn.port || '3306'}`;
+            if (conn.type === 'sqlite') {
+                // SQLite3: 显示文件路径
+                const filePath = conn.database || conn.host || 'unknown';
+                displayText = `sqlite://${filePath}`;
+            } else if (conn.dsn) {
+                // DSN 模式
+                const userMatch = conn.dsn.match(/^([^:]+):/);
+                const hostMatch = conn.dsn.match(/@tcp\(([^:]+)/);
+                const user = userMatch ? userMatch[1] : 'unknown';
+                const host = hostMatch ? hostMatch[1] : 'unknown';
+                displayText = `${conn.type || 'mysql'}://${user}@${host}`;
+            } else {
+                displayText = `${conn.type || 'mysql'}://${conn.user || 'unknown'}@${conn.host || 'unknown'}:${conn.port || '3306'}`;
             }
         }
         
@@ -1571,29 +1575,29 @@ async function connectWithSavedConnection(savedConn) {
                 databasePanel.style.display = 'none'; // SQLite3 不支持多数据库
                 await loadTables();
             } else {
-                // 检查DSN中是否包含数据库
-                const dsn = connInfo.dsn || '';
-                const hasDatabaseInDSN = dsn && (dsn.includes('/') && !dsn.endsWith('/') && !dsn.endsWith('/?'));
-                
-                if (hasDatabaseInDSN) {
-                    // DSN中包含数据库,直接使用该数据库
-                    databasePanel.style.display = 'block';
-                    await loadDatabases(data.databases || []);
-                    // 尝试从DSN中提取数据库名
-                    const dbMatch = dsn.match(/\/([^\/\?]+)/);
-                    if (dbMatch && dbMatch[1]) {
-                        const dbName = dbMatch[1];
-                        // 设置选择器并切换数据库
-                        databaseSelect.value = dbName;
-                        await switchDatabase(dbName);
-                    } else {
-                        await loadTables();
-                    }
+            // 检查DSN中是否包含数据库
+            const dsn = connInfo.dsn || '';
+            const hasDatabaseInDSN = dsn && (dsn.includes('/') && !dsn.endsWith('/') && !dsn.endsWith('/?'));
+            
+            if (hasDatabaseInDSN) {
+                // DSN中包含数据库,直接使用该数据库
+                databasePanel.style.display = 'block';
+                await loadDatabases(data.databases || []);
+                // 尝试从DSN中提取数据库名
+                const dbMatch = dsn.match(/\/([^\/\?]+)/);
+                if (dbMatch && dbMatch[1]) {
+                    const dbName = dbMatch[1];
+                    // 设置选择器并切换数据库
+                    databaseSelect.value = dbName;
+                    await switchDatabase(dbName);
                 } else {
-                    // DSN中不包含数据库,显示数据库选择器
-                    databasePanel.style.display = 'block';
-                    await loadDatabases(data.databases || []);
+                    await loadTables();
                 }
+            } else {
+                // DSN中不包含数据库,显示数据库选择器
+                databasePanel.style.display = 'block';
+                await loadDatabases(data.databases || []);
+            }
             }
             showNotification(t('connection.success'), 'success');
         } else {
@@ -2345,7 +2349,11 @@ function updateActiveConnectionsList() {
             displayText = info.name;
         } else {
             // 否则使用原来的格式
-            if (info.dsn) {
+            if (info.type === 'sqlite') {
+                // SQLite3: 显示文件路径
+                const filePath = info.database || info.host || 'unknown';
+                displayText = `sqlite://${filePath}`;
+            } else if (info.dsn) {
                 const userMatch = info.dsn.match(/^([^:]+):/);
                 const hostMatch = info.dsn.match(/@tcp\(([^:]+)/);
                 const user = userMatch ? userMatch[1] : 'unknown';
@@ -2514,7 +2522,15 @@ function updateConnectionInfo(info) {
         infoText = info.name;
     } else {
         // 否则使用原来的格式
-    if (info.dsn) {
+        if (info.type === 'sqlite') {
+            // SQLite3: 显示文件路径（优先使用 database 字段，其次使用 host 字段）
+            const filePath = info.database || info.host || '';
+            if (filePath) {
+                infoText = `${dbTypeName}://${filePath}`;
+            } else {
+                infoText = `${dbTypeName}`;
+            }
+        } else if (info.dsn) {
         // DSN 模式：尝试从 DSN 中提取信息
         const userMatch = info.dsn.match(/^([^:]+):/);
         const hostMatch = info.dsn.match(/@tcp\(([^:]+)/);

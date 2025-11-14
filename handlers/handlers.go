@@ -1078,7 +1078,8 @@ func (s *Server) GetTableColumns(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 确保数据库已选择（从持久化存储获取的会话应该已经切换了数据库，但为了安全再次检查）
-	if session.currentDatabase == "" {
+	// SQLite3 没有数据库概念，跳过数据库检查
+	if session.currentDatabase == "" && session.dbType != "sqlite" {
 		writeJSONError(w, http.StatusBadRequest, ErrCodeSelectDatabaseFirst)
 		return
 	}
