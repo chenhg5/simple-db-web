@@ -976,6 +976,7 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 		// 使用内置数据库类型
 		switch info.Type {
 		case "mysql":
+			db = database.NewMySQL()
 		default:
 			writeJSONError(w, http.StatusBadRequest, ErrCodeUnsupportedDatabaseType, info.Type)
 			return
