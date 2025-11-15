@@ -278,7 +278,7 @@ func (s *SQLite3) GetTableDataByID(tableName string, primaryKey string, lastId i
 	var query string
 	var rows *sql.Rows
 	var queryArgs []interface{}
-	
+
 	// 合并过滤条件和ID条件
 	idCondition := ""
 	if direction == "prev" {
@@ -314,13 +314,13 @@ func (s *SQLite3) GetTableDataByID(tableName string, primaryKey string, lastId i
 	if len(allConditions) > 0 {
 		query += " WHERE " + strings.Join(allConditions, " AND ")
 	}
-	
+
 	if direction == "prev" {
 		query += fmt.Sprintf(" ORDER BY `%s` DESC LIMIT %d", primaryKey, pageSize)
 	} else {
 		query += fmt.Sprintf(" ORDER BY `%s` ASC LIMIT %d", primaryKey, pageSize)
 	}
-	
+
 	rows, err = s.db.Query(query, queryArgs...)
 	if err != nil {
 		return nil, 0, nil, fmt.Errorf("failed to query data: %w", err)
@@ -335,7 +335,7 @@ func (s *SQLite3) GetTableDataByID(tableName string, primaryKey string, lastId i
 	var results = make([]map[string]interface{}, 0)
 	var nextId interface{} = nil
 	var firstId interface{} = nil
-	
+
 	for rows.Next() {
 		values := make([]interface{}, len(columns))
 		valuePtrs := make([]interface{}, len(columns))
@@ -359,7 +359,7 @@ func (s *SQLite3) GetTableDataByID(tableName string, primaryKey string, lastId i
 			}
 		}
 		results = append(results, row)
-		
+
 		// 记录第一个和最后一个ID
 		if idVal, ok := row[primaryKey]; ok {
 			if firstId == nil {
@@ -368,7 +368,7 @@ func (s *SQLite3) GetTableDataByID(tableName string, primaryKey string, lastId i
 			nextId = idVal
 		}
 	}
-	
+
 	// 如果是上一页，需要反转结果（因为查询时用了DESC）
 	if direction == "prev" {
 		// 反转结果数组
@@ -387,13 +387,13 @@ func (s *SQLite3) GetPageIdByPageNumber(tableName string, primaryKey string, pag
 	if page <= 1 {
 		return nil, nil // 第一页没有lastId
 	}
-	
+
 	// 计算需要跳过的记录数
-	offset := (page - 1) * pageSize - 1 // 减1是因为我们要获取上一页的最后一个ID
-	
+	offset := (page-1)*pageSize - 1 // 减1是因为我们要获取上一页的最后一个ID
+
 	// 查询第offset条记录的ID
 	query := fmt.Sprintf("SELECT `%s` FROM `%s` ORDER BY `%s` ASC LIMIT 1 OFFSET %d", primaryKey, tableName, primaryKey, offset)
-	
+
 	var id interface{}
 	err := s.db.QueryRow(query).Scan(&id)
 	if err != nil {
@@ -403,7 +403,7 @@ func (s *SQLite3) GetPageIdByPageNumber(tableName string, primaryKey string, pag
 		}
 		return nil, fmt.Errorf("failed to query page ID: %w", err)
 	}
-	
+
 	return id, nil
 }
 
