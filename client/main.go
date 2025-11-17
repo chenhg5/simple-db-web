@@ -23,6 +23,9 @@ var userManagementScript string
 //go:embed templates/login.html
 var loginHTML string
 
+// 语义化版本号
+const AppVersion = "v0.0.1"
+
 // 构建信息（通过 ldflags 注入）
 var (
 	Version   string
@@ -49,6 +52,12 @@ type ConnectionsConfig struct {
 }
 
 func main() {
+	// 检查 version 命令
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		printVersion()
+		os.Exit(0)
+	}
+
 	// 解析命令行参数
 	config := parseFlags()
 
@@ -322,4 +331,21 @@ func loadPresetConnections(server *handlers.Server, yamlPath string) error {
 	log.Printf("Loaded %d preset connection(s)", len(config.Connections))
 
 	return nil
+}
+
+// printVersion 打印版本信息
+func printVersion() {
+	fmt.Printf("Version: %s\n", AppVersion)
+	if Version != "" {
+		fmt.Printf("Build Version: %s\n", Version)
+	}
+	if BuildTime != "" {
+		fmt.Printf("Build Time: %s\n", BuildTime)
+	}
+	if Commit != "" {
+		fmt.Printf("Commit: %s\n", Commit)
+	}
+	if GoVersion != "" {
+		fmt.Printf("Go Version: %s\n", GoVersion)
+	}
 }
