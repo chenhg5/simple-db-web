@@ -15,7 +15,7 @@ import (
 // Redis 实现Database接口
 // 注意：Redis 是键值存储数据库，需要特殊处理
 type Redis struct {
-	client  *redis.Client
+	client  redis.UniversalClient // 使用 UniversalClient 支持单机和集群
 	dbIndex int
 	ctx     context.Context
 }
@@ -106,19 +106,68 @@ func (r *Redis) Connect(dsn string) error {
 	// 注意：DisableIndentity 选项在 go-redis v9 中可用
 	opts.DisableIndentity = true
 
+	// 先尝试单机连接
 	client := redis.NewClient(opts)
 
-	// 测试连接
+	// 测试连接并检测是否是集群
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
+		client.Close()
 		return fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
-	r.client = client
-	if opts != nil && opts.DB > 0 {
-		r.dbIndex = opts.DB
+	// 尝试执行一个命令来检测是否是集群模式
+	// 如果是集群，会返回 MOVED 或 ASK 错误
+	// 使用 INFO cluster 命令来检测，更安全
+	isCluster := false
+	info, err := client.Info(ctx, "cluster").Result()
+	if err == nil {
+		// 如果 INFO cluster 命令成功，检查是否是集群模式
+		if strings.Contains(info, "cluster_enabled:1") {
+			isCluster = true
+		}
+	} else {
+		// 如果 INFO 命令失败，尝试执行一个简单的命令
+		// 如果返回 MOVED 或 ASK 错误，说明是集群
+		testKey := "__cluster_test__"
+		testErr := client.Set(ctx, testKey, "test", time.Second).Err()
+		client.Del(ctx, testKey) // 清理测试键
+		
+		if testErr != nil {
+			errStr := testErr.Error()
+			if strings.Contains(errStr, "MOVED") || strings.Contains(errStr, "ASK") {
+				isCluster = true
+			}
+		}
+	}
+
+	// 如果是集群模式，使用集群客户端
+	if isCluster {
+		client.Close() // 关闭单机客户端
+		
+		// 构建集群选项
+		clusterOpts := &redis.ClusterOptions{
+			Addrs:    []string{opts.Addr},
+			Password: opts.Password,
+		}
+		clusterOpts.DisableIndentity = true
+		
+		clusterClient := redis.NewClusterClient(clusterOpts)
+		
+		// 测试集群连接
+		if err := clusterClient.Ping(ctx).Err(); err != nil {
+			clusterClient.Close()
+			return fmt.Errorf("failed to connect to Redis cluster: %w", err)
+		}
+		
+		r.client = clusterClient
+	} else {
+		r.client = client
+		if opts != nil && opts.DB > 0 {
+			r.dbIndex = opts.DB
+		}
 	}
 
 	return nil
@@ -329,16 +378,19 @@ func (r *Redis) getKeysByType(dataType string, page, pageSize int, filters *Filt
 	// 计算需要跳过的键数量
 	skipCount := (page - 1) * pageSize
 	neededCount := pageSize
+	scanTimes := 0
+	maxScanTimes := 5
 
 	var cursor uint64 = 0
 	var matchedKeys []string
 
 	// 使用 SCAN 迭代，直到获取到足够的匹配键
-	for len(matchedKeys) < skipCount+neededCount {
+	for len(matchedKeys) < skipCount+neededCount && scanTimes < maxScanTimes {
 		keys, nextCursor, err := r.client.Scan(r.ctx, cursor, pattern, 1000).Result()
 		if err != nil {
 			return nil, -1, fmt.Errorf("failed to scan keys: %w", err)
 		}
+		scanTimes++
 
 		// 如果指定了类型，过滤键
 		if dataType != "keys" {
@@ -374,10 +426,7 @@ func (r *Redis) getKeysByType(dataType string, page, pageSize int, filters *Filt
 
 	// 获取当前页的键
 	start := skipCount
-	end := start + neededCount
-	if end > len(matchedKeys) {
-		end = len(matchedKeys)
-	}
+	end := min(start + neededCount, len(matchedKeys))
 
 	keys := matchedKeys[start:end]
 
@@ -894,9 +943,17 @@ func (r *Redis) ExecuteInsert(query string) (int64, error) {
 }
 
 // GetDatabases 获取所有数据库索引（Redis 默认有 16 个数据库，索引 0-15）
+// 注意：集群模式只支持数据库 0
 func (r *Redis) GetDatabases() ([]string, error) {
 	if r.client == nil {
 		return nil, fmt.Errorf("database not connected")
+	}
+
+	// 检查是否是集群客户端（集群只支持数据库 0）
+	_, isCluster := r.client.(*redis.ClusterClient)
+	if isCluster {
+		// 集群模式只支持数据库 0
+		return []string{"0"}, nil
 	}
 
 	// Redis 默认有 16 个数据库（可以通过配置修改）
@@ -910,9 +967,16 @@ func (r *Redis) GetDatabases() ([]string, error) {
 }
 
 // SwitchDatabase 切换当前使用的数据库（Redis SELECT 命令）
+// 注意：集群模式不支持 SELECT 命令
 func (r *Redis) SwitchDatabase(databaseName string) error {
 	if r.client == nil {
 		return fmt.Errorf("database not connected")
+	}
+
+	// 检查是否是集群客户端（集群不支持 SELECT 命令）
+	_, isCluster := r.client.(*redis.ClusterClient)
+	if isCluster {
+		return nil
 	}
 
 	dbIndex, err := strconv.Atoi(databaseName)
