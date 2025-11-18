@@ -88,6 +88,7 @@ const i18n = {
             'data.total': 'Total {total} records, Page {page}/{totalPages}',
             'data.clickhouseNoPagination': 'Showing first 10 records (ClickHouse does not support pagination)',
             'data.redisNoPagination': 'Showing current page data (Redis does not support pagination)',
+            'data.elasticsearchNoPagination': 'Showing current page data (Elasticsearch does not support pagination)',
             'data.prevPage': 'Previous',
             'data.nextPage': 'Next',
             'data.copySchema': 'Copy',
@@ -331,6 +332,7 @@ const i18n = {
             'data.total': '共 {total} 条，第 {page}/{totalPages} 页',
             'data.clickhouseNoPagination': '显示前 10 条数据（ClickHouse 不支持分页）',
             'data.redisNoPagination': '显示当前页数据（Redis 不支持分页）',
+            'data.elasticsearchNoPagination': '显示当前页数据（Elasticsearch 不支持分页）',
             'data.prevPage': '上一页',
             'data.nextPage': '下一页',
             'data.copySchema': '复制',
@@ -584,6 +586,7 @@ const i18n = {
             'data.total': '共 {total} 筆，第 {page}/{totalPages} 頁',
             'data.clickhouseNoPagination': '顯示前 10 筆資料（ClickHouse 不支援分頁）',
             'data.redisNoPagination': '顯示當前頁資料（Redis 不支援分頁）',
+            'data.elasticsearchNoPagination': '顯示當前頁資料（Elasticsearch 不支援分頁）',
             'data.prevPage': '上一頁',
             'data.nextPage': '下一頁',
             'data.copySchema': '複製',
@@ -2051,9 +2054,9 @@ async function connectWithSavedConnection(savedConn) {
             updateConnectionInfo(connInfo);
             updateActiveConnectionsList();
             
-            // SQLite3 不需要选择数据库，直接加载表
-            if (connInfo.type === 'sqlite') {
-                databasePanel.style.display = 'none'; // SQLite3 不支持多数据库
+            // SQLite3 和 Elasticsearch 不需要选择数据库，直接加载表
+            if (connInfo.type === 'sqlite' || connInfo.type === 'elasticsearch') {
+                databasePanel.style.display = 'none'; // SQLite3 和 Elasticsearch 不支持多数据库
                 await loadTables();
             } else {
             // 检查DSN中是否包含数据库
@@ -2913,15 +2916,20 @@ async function restoreConnection() {
             // 有活动的连接，恢复UI状态
             updateConnectionStatus(true);
             updateActiveConnectionsList();
-            databasePanel.style.display = 'block';
             
-            // 加载数据库列表
-            await loadDatabases(data.databases || []);
-            
-            // 如果有当前数据库，恢复它
-            if (data.currentDatabase) {
-                databaseSelect.value = data.currentDatabase;
-                await switchDatabase(data.currentDatabase);
+            // SQLite3 和 Elasticsearch 不需要选择数据库
+            if (connectionInfo && (connectionInfo.type === 'sqlite' || connectionInfo.type === 'elasticsearch')) {
+                databasePanel.style.display = 'none';
+            } else {
+                databasePanel.style.display = 'block';
+                // 加载数据库列表
+                await loadDatabases(data.databases || []);
+                
+                // 如果有当前数据库，恢复它
+                if (data.currentDatabase) {
+                    databaseSelect.value = data.currentDatabase;
+                    await switchDatabase(data.currentDatabase);
+                }
             }
             
             // 如果有当前表，恢复它
@@ -3537,9 +3545,9 @@ async function handleConnect() {
                 newConnectionModal.style.display = 'none';
             }
             
-            // SQLite3 不需要选择数据库，直接加载表
-            if (dbType === 'sqlite') {
-                databasePanel.style.display = 'none'; // SQLite3 不支持多数据库
+            // SQLite3 和 Elasticsearch 不需要选择数据库，直接加载表
+            if (dbType === 'sqlite' || dbType === 'elasticsearch') {
+                databasePanel.style.display = 'none'; // SQLite3 和 Elasticsearch 不支持多数据库
                 await loadTables();
             } else {
             // 检查DSN中是否包含数据库
@@ -3779,7 +3787,8 @@ function updateConnectionInfo(info) {
             'postgres': 'PostgreSQL',
             'postgresql': 'PostgreSQL',
             'sqlite': 'SQLite',
-            'oceandb': 'OceanBase'
+            'oceandb': 'OceanBase',
+            'elasticsearch': 'Elasticsearch'
         };
         dbTypeName = dbTypeNames[info.type] || info.type;
     }
@@ -3796,6 +3805,45 @@ function updateConnectionInfo(info) {
                 infoText = `${dbTypeName}://${filePath}`;
             } else {
                 infoText = `${dbTypeName}`;
+            }
+        } else if (info.type === 'elasticsearch') {
+            // Elasticsearch: 解析 DSN 或表单信息
+            if (info.dsn) {
+                // DSN 模式：可能是 http://user:pass@host:port 或 https://user:pass@host:port
+                try {
+                    const url = new URL(info.dsn);
+                    const host = url.hostname || 'unknown';
+                    const port = url.port || (url.protocol === 'https:' ? '443' : '9200');
+                    const user = url.username || '';
+                    if (user) {
+                        infoText = `${dbTypeName}://${user}@${host}:${port}`;
+                    } else {
+                        infoText = `${dbTypeName}://${host}:${port}`;
+                    }
+                } catch (e) {
+                    // 如果解析失败，尝试从 DSN 中提取
+                    const userMatch = info.dsn.match(/(?:https?:\/\/)?([^:@]+)(?::([^@]+))?@/);
+                    const hostMatch = info.dsn.match(/@([^:]+)/);
+                    const portMatch = info.dsn.match(/:(\d+)(?:\/|$)/);
+                    const user = userMatch ? userMatch[1] : '';
+                    const host = hostMatch ? hostMatch[1] : 'unknown';
+                    const port = portMatch ? portMatch[1] : '9200';
+                    if (user) {
+                        infoText = `${dbTypeName}://${user}@${host}:${port}`;
+                    } else {
+                        infoText = `${dbTypeName}://${host}:${port}`;
+                    }
+                }
+            } else {
+                // 表单模式
+                const host = info.host || 'localhost';
+                const port = info.port || '9200';
+                const user = info.user || '';
+                if (user) {
+                    infoText = `${dbTypeName}://${user}@${host}:${port}`;
+                } else {
+                    infoText = `${dbTypeName}://${host}:${port}`;
+                }
             }
         } else if (info.dsn) {
         // DSN 模式：尝试从 DSN 中提取信息
@@ -4306,9 +4354,10 @@ async function loadTableData() {
             currentColumns = columnsData.columns.map(col => col.name);
         }
         
-        // Redis 不支持分页，固定使用第一页
+        // Redis 和 Elasticsearch 不支持分页，固定使用第一页
         const isRedis = currentDbType === 'redis';
-        const requestPage = isRedis ? 1 : currentPage;
+        const isElasticsearch = currentDbType === 'elasticsearch';
+        const requestPage = (isRedis || isElasticsearch) ? 1 : currentPage;
         
         // 构建请求URL
         let url = `${API_BASE}/table/data?table=${currentTable}&page=${requestPage}&pageSize=${pageSize}`;
@@ -4419,10 +4468,11 @@ async function loadTableData() {
                 dataByColumns.push(rowByColumns);
             });
 
-            // 检查是否为 ClickHouse 或 Redis（都不支持分页）
+            // 检查是否为 ClickHouse、Redis 或 Elasticsearch（都不支持分页）
             const isClickHouse = data.isClickHouse || false;
             const isRedis = currentDbType === 'redis';
-            const noPagination = isClickHouse || isRedis;
+            const isElasticsearch = currentDbType === 'elasticsearch';
+            const noPagination = isClickHouse || isRedis || isElasticsearch;
             
             // 保存当前数据（用于前端排序）
             currentTableData.rows = dataByColumns;
@@ -4645,9 +4695,12 @@ function displayTableData(rows, total, isClickHouse = false) {
 // 更新分页
 function updatePagination(total, page, pageSize, isClickHouse = false, useIdPagination = false, hasNextPage = true) {
     if (isClickHouse) {
-        // ClickHouse 和 Redis 不支持分页，只显示提示信息
+        // ClickHouse、Redis 和 Elasticsearch 不支持分页，只显示提示信息
         const isRedis = currentDbType === 'redis';
-        if (isRedis) {
+        const isElasticsearch = currentDbType === 'elasticsearch';
+        if (isElasticsearch) {
+            paginationInfo.textContent = t('data.elasticsearchNoPagination') || '显示当前页数据（Elasticsearch 不支持分页）';
+        } else if (isRedis) {
             paginationInfo.textContent = t('data.redisNoPagination') || '显示当前页数据（Redis 不支持分页）';
         } else {
             paginationInfo.textContent = t('data.clickhouseNoPagination');

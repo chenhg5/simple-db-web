@@ -68,6 +68,9 @@ func main() {
 	server.AddDatabase(func() database.Database {
 		return database.NewRedis()
 	})
+	server.AddDatabase(func() database.Database {
+		return database.NewElasticsearch()
+	})
 
 	presetConns := []database.ConnectionInfo{
 		{

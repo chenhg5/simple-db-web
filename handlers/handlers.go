@@ -977,8 +977,6 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 		switch info.Type {
 		case "mysql":
 			db = database.NewMySQL()
-		case "redis":
-			db = database.NewRedis()
 		default:
 			writeJSONError(w, http.StatusBadRequest, ErrCodeUnsupportedDatabaseType, info.Type)
 			return
@@ -1031,6 +1029,8 @@ func (s *Server) Connect(w http.ResponseWriter, r *http.Request) {
 		dsn = database.BuildMongoDBDSN(info)
 	case "redis":
 		dsn = database.BuildRedisDSN(info)
+	case "elasticsearch":
+		dsn = database.BuildElasticsearchDSN(info)
 	default:
 		dsn = database.BuildDSN(info)
 	}
@@ -1188,7 +1188,8 @@ func (s *Server) GetTableColumns(w http.ResponseWriter, r *http.Request) {
 
 	// 确保数据库已选择（从持久化存储获取的会话应该已经切换了数据库，但为了安全再次检查）
 	// SQLite3、H2 没有数据库概念，MongoDB 在连接时已选择数据库，Redis 默认使用 db 0，跳过数据库检查
-	if session.currentDatabase == "" && session.dbType != "sqlite" && session.dbType != "h2" && session.dbType != "mongodb" && session.dbType != "redis" {
+	if session.currentDatabase == "" && session.dbType != "sqlite" && session.dbType != "h2" &&
+		session.dbType != "mongodb" && session.dbType != "redis" && session.dbType != "elasticsearch" {
 		writeJSONError(w, http.StatusBadRequest, ErrCodeSelectDatabaseFirst)
 		return
 	}
@@ -1357,7 +1358,8 @@ func (s *Server) GetTableData(w http.ResponseWriter, r *http.Request) {
 	// 检查是否为 ClickHouse 或 Redis（都不支持分页）
 	isClickHouse := session.dbType == "clickhouse"
 	isRedis := session.dbType == "redis"
-	noPagination := isClickHouse || isRedis
+	isElasticsearch := session.dbType == "elasticsearch"
+	noPagination := isClickHouse || isRedis || isElasticsearch
 
 	response := map[string]interface{}{
 		"success": true,
@@ -1505,8 +1507,8 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 		queryType = queryUpper[:6]
 	}
 
-	// 执行SQL校验（Redis 和 MongoDB 跳过 SQL 验证，因为它们使用自己的命令语法）
-	if session.dbType != "redis" && session.dbType != "mongodb" {
+	// 执行SQL校验（Redis、MongoDB 和 Elasticsearch 跳过 SQL 验证，因为它们使用自己的命令语法）
+	if session.dbType != "redis" && session.dbType != "mongodb" && session.dbType != "elasticsearch" {
 		if err := s.validateSQL(req.Query, queryType); err != nil {
 			writeJSONError(w, http.StatusBadRequest, ErrCodeSQLValidationFailed, err)
 			return
@@ -1514,8 +1516,8 @@ func (s *Server) ExecuteQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 判断SQL类型（兼容旧代码）
-	// 对于 Redis，直接执行查询（Redis 命令在 ExecuteQuery 中处理）
-	if session.dbType == "redis" {
+	// 对于 Redis 和 Elasticsearch，直接执行查询（它们使用自己的命令语法）
+	if session.dbType == "redis" || session.dbType == "elasticsearch" {
 		results, err := session.db.ExecuteQuery(req.Query)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, ErrCodeExecuteQueryFailed, err)
