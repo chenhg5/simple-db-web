@@ -126,6 +126,29 @@ const i18n = {
             'query.clearHistory': 'Clear History',
             'query.historyCleared': 'History cleared',
             
+            // Redis
+            'redis.command': 'Command',
+            'redis.command.GET': 'GET - Get string value',
+            'redis.command.SET': 'SET - Set string value',
+            'redis.command.HGETALL': 'HGETALL - Get all hash fields',
+            'redis.command.HSET': 'HSET - Set hash field',
+            'redis.command.LRANGE': 'LRANGE - Get list range',
+            'redis.command.SMEMBERS': 'SMEMBERS - Get all set members',
+            'redis.command.ZRANGE': 'ZRANGE - Get sorted set range',
+            'redis.command.KEYS': 'KEYS - Find matching keys',
+            'redis.command.INFO': 'INFO - Get server information',
+            'redis.param.key': 'Key',
+            'redis.param.value': 'Value',
+            'redis.param.field': 'Field',
+            'redis.param.start': 'Start position',
+            'redis.param.stop': 'Stop position',
+            'redis.param.pattern': 'Pattern (e.g., user:*)',
+            'redis.param.section': 'Section (optional, e.g., server, memory)',
+            
+            // Elasticsearch
+            'elasticsearch.index': 'Index (optional, leave empty to query all indices)',
+            'elasticsearch.query': 'Query DSL (JSON)',
+            
             // 编辑和删除
             'edit.title': 'Edit Row Data',
             'edit.save': 'Update successful',
@@ -380,6 +403,29 @@ const i18n = {
             'query.noResults': '暂无查询结果',
             'common.rows': '行',
             
+            // Redis
+            'redis.command': '命令',
+            'redis.command.GET': 'GET - 获取字符串值',
+            'redis.command.SET': 'SET - 设置字符串值',
+            'redis.command.HGETALL': 'HGETALL - 获取哈希所有字段',
+            'redis.command.HSET': 'HSET - 设置哈希字段',
+            'redis.command.LRANGE': 'LRANGE - 获取列表范围',
+            'redis.command.SMEMBERS': 'SMEMBERS - 获取集合所有成员',
+            'redis.command.ZRANGE': 'ZRANGE - 获取有序集合范围',
+            'redis.command.KEYS': 'KEYS - 查找匹配的键',
+            'redis.command.INFO': 'INFO - 获取服务器信息',
+            'redis.param.key': '键名',
+            'redis.param.value': '值',
+            'redis.param.field': '字段名',
+            'redis.param.start': '起始位置',
+            'redis.param.stop': '结束位置',
+            'redis.param.pattern': '匹配模式 (如: user:*)',
+            'redis.param.section': '信息段 (可选，如: server, memory)',
+            
+            // Elasticsearch
+            'elasticsearch.index': '索引 (可选，留空查询所有索引)',
+            'elasticsearch.query': '查询 DSL (JSON)',
+            
             // 编辑和删除
             'edit.title': '编辑行数据',
             'edit.save': '更新成功',
@@ -500,7 +546,14 @@ const i18n = {
             'user.updateFailed': '更新用户失败',
             'user.deleted': '用户删除成功',
             'user.deleteFailed': '删除用户失败',
-            'user.fillUsername': '请填写用户名'
+            'user.fillUsername': '请填写用户名',
+
+            // Redis
+            'redis.command': '命令',
+
+            // Elasticsearch
+            'elasticsearch.index': '索引 (可选，留空查询所有索引)',
+            'elasticsearch.query': '查询 DSL (JSON)'
         },
         'zh-TW': {
             // 通用
@@ -634,6 +687,29 @@ const i18n = {
             'query.noResults': '暫無查詢結果',
             'common.rows': '行',
             
+            // Redis
+            'redis.command': '命令',
+            'redis.command.GET': 'GET - 取得字串值',
+            'redis.command.SET': 'SET - 設定字串值',
+            'redis.command.HGETALL': 'HGETALL - 取得雜湊所有欄位',
+            'redis.command.HSET': 'HSET - 設定雜湊欄位',
+            'redis.command.LRANGE': 'LRANGE - 取得列表範圍',
+            'redis.command.SMEMBERS': 'SMEMBERS - 取得集合所有成員',
+            'redis.command.ZRANGE': 'ZRANGE - 取得有序集合範圍',
+            'redis.command.KEYS': 'KEYS - 查找匹配的鍵',
+            'redis.command.INFO': 'INFO - 取得伺服器資訊',
+            'redis.param.key': '鍵名',
+            'redis.param.value': '值',
+            'redis.param.field': '欄位名',
+            'redis.param.start': '起始位置',
+            'redis.param.stop': '結束位置',
+            'redis.param.pattern': '匹配模式 (如: user:*)',
+            'redis.param.section': '資訊段 (可選，如: server, memory)',
+            
+            // Elasticsearch
+            'elasticsearch.index': '索引 (可選，留空查詢所有索引)',
+            'elasticsearch.query': '查詢 DSL (JSON)',
+            
             // 编辑和删除
             'edit.title': '編輯行資料',
             'edit.save': '更新成功',
@@ -754,7 +830,14 @@ const i18n = {
             'user.updateFailed': '更新用戶失敗',
             'user.deleted': '用戶刪除成功',
             'user.deleteFailed': '刪除用戶失敗',
-            'user.fillUsername': '請填寫用戶名稱'
+            'user.fillUsername': '請填寫用戶名稱',
+
+            // Redis
+            'redis.command': '命令',
+
+            // Elasticsearch
+            'elasticsearch.index': '索引 (可選，留空查詢所有索引)',
+            'elasticsearch.query': '查詢 DSL (JSON)'
         }
     },
     
@@ -1151,6 +1234,19 @@ const queryHistoryList = document.getElementById('queryHistoryList');
 const closeQueryHistoryModal = document.getElementById('closeQueryHistoryModal');
 const closeQueryHistoryBtn = document.getElementById('closeQueryHistoryBtn');
 const clearQueryHistory = document.getElementById('clearQueryHistory');
+// Redis 查询相关元素
+const redisCommand = document.getElementById('redisCommand');
+const redisParamsContainer = document.getElementById('redisParamsContainer');
+const executeRedisQuery = document.getElementById('executeRedisQuery');
+const clearRedisQuery = document.getElementById('clearRedisQuery');
+const exportRedisQueryBtn = document.getElementById('exportRedisQueryBtn');
+// Elasticsearch 查询相关元素
+const esIndex = document.getElementById('esIndex');
+const esQuery = document.getElementById('esQuery');
+const executeESQuery = document.getElementById('executeESQuery');
+const formatESQueryBtn = document.getElementById('formatESQueryBtn');
+const clearESQuery = document.getElementById('clearESQuery');
+const exportESQueryBtn = document.getElementById('exportESQueryBtn');
 
 // CodeMirror编辑器实例
 let sqlEditor = null;
@@ -1409,6 +1505,11 @@ window.addEventListener('languageChanged', () => {
         if (firstOption.value === '') {
             firstOption.textContent = t('connection.selectDatabase');
         }
+    }
+    // 更新 Redis 命令选择框和参数（如果当前是 Redis 连接）
+    if (currentDbType === 'redis') {
+        updateRedisCommandOptions();
+        updateRedisCommandParams();
     }
     // 更新 GitHub 链接
     updateGitHubLink();
@@ -2044,6 +2145,9 @@ async function connectWithSavedConnection(savedConn) {
             connectionId = newConnectionId;
             connectionInfo = connInfo;
             currentDbType = savedConn.type || 'mysql'; // 保存数据库类型
+            
+            // 更新查询编辑器
+            updateQueryEditor();
             
             // 保存到sessionStorage（用于页面刷新后恢复）
             sessionStorage.setItem('currentConnectionId', newConnectionId);
@@ -2912,6 +3016,9 @@ async function restoreConnection() {
                 });
                 
                 updateConnectionInfo(connectionInfo);
+                
+                // 更新查询编辑器
+                updateQueryEditor();
             }
             // 有活动的连接，恢复UI状态
             updateConnectionStatus(true);
@@ -3207,6 +3314,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 初始化CodeMirror编辑器
     initCodeMirror();
+    
+    // 初始化 Redis 命令选择框（如果存在）
+    if (redisCommand) {
+        updateRedisCommandOptions();
+    }
     
     // 初始化筛选管理器
     if (typeof filterManager !== 'undefined') {
@@ -3517,6 +3629,9 @@ async function handleConnect() {
             connectionInfo = connInfo;
             currentDbType = dbType;
             
+            // 更新查询编辑器
+            updateQueryEditor();
+            
             // 保存到sessionStorage（用于页面刷新后恢复）
             sessionStorage.setItem('currentConnectionId', newConnectionId);
             sessionStorage.setItem('currentConnectionInfo', JSON.stringify(connInfo));
@@ -3683,6 +3798,9 @@ async function switchToConnection(targetConnectionId) {
     connectionId = targetConnectionId;
     connectionInfo = conn.connectionInfo;
     currentDbType = conn.connectionInfo.type;
+    
+    // 更新查询编辑器
+    updateQueryEditor();
     
     // 更新sessionStorage
     sessionStorage.setItem('currentConnectionId', targetConnectionId);
@@ -4942,7 +5060,342 @@ function switchTab(tabName) {
     } else if (tabName === 'schema' && !currentTable) {
         // 如果没有选择表，隐藏复制按钮
         copySchemaBtn.style.display = 'none';
+    } else if (tabName === 'query') {
+        // 根据数据库类型切换查询编辑器
+        updateQueryEditor();
     }
+}
+
+// 根据数据库类型更新查询编辑器显示
+function updateQueryEditor() {
+    const sqlEditor = document.getElementById('sqlQueryEditor');
+    const redisEditor = document.getElementById('redisQueryEditor');
+    const esEditor = document.getElementById('elasticsearchQueryEditor');
+    
+    // 隐藏所有编辑器
+    if (sqlEditor) sqlEditor.style.display = 'none';
+    if (redisEditor) redisEditor.style.display = 'none';
+    if (esEditor) esEditor.style.display = 'none';
+    
+    // 根据数据库类型显示对应的编辑器
+    if (currentDbType === 'redis') {
+        if (redisEditor) redisEditor.style.display = 'block';
+        updateRedisCommandOptions();
+        updateRedisCommandParams();
+    } else if (currentDbType === 'elasticsearch') {
+        if (esEditor) esEditor.style.display = 'block';
+    } else {
+        if (sqlEditor) sqlEditor.style.display = 'block';
+    }
+}
+
+// Redis 命令参数配置（使用国际化键）
+const redisCommandParams = {
+    'GET': [
+        { name: 'key', labelKey: 'redis.param.key', required: true }
+    ],
+    'SET': [
+        { name: 'key', labelKey: 'redis.param.key', required: true },
+        { name: 'value', labelKey: 'redis.param.value', required: true }
+    ],
+    'HGETALL': [
+        { name: 'key', labelKey: 'redis.param.key', required: true }
+    ],
+    'HSET': [
+        { name: 'key', labelKey: 'redis.param.key', required: true },
+        { name: 'field', labelKey: 'redis.param.field', required: true },
+        { name: 'value', labelKey: 'redis.param.value', required: true }
+    ],
+    'LRANGE': [
+        { name: 'key', labelKey: 'redis.param.key', required: true },
+        { name: 'start', labelKey: 'redis.param.start', required: true, type: 'number' },
+        { name: 'stop', labelKey: 'redis.param.stop', required: true, type: 'number' }
+    ],
+    'SMEMBERS': [
+        { name: 'key', labelKey: 'redis.param.key', required: true }
+    ],
+    'ZRANGE': [
+        { name: 'key', labelKey: 'redis.param.key', required: true },
+        { name: 'start', labelKey: 'redis.param.start', required: true, type: 'number' },
+        { name: 'stop', labelKey: 'redis.param.stop', required: true, type: 'number' }
+    ],
+    'KEYS': [
+        { name: 'pattern', labelKey: 'redis.param.pattern', required: true }
+    ],
+    'INFO': [
+        { name: 'section', labelKey: 'redis.param.section', required: false }
+    ]
+};
+
+// 更新 Redis 命令参数输入框
+function updateRedisCommandParams() {
+    if (!redisParamsContainer || !redisCommand) return;
+    
+    const command = redisCommand.value;
+    const params = redisCommandParams[command] || [];
+    
+    redisParamsContainer.innerHTML = '';
+    
+    params.forEach((param, index) => {
+        const paramDiv = document.createElement('div');
+        paramDiv.className = 'form-group';
+        paramDiv.style.cssText = 'display: flex; align-items: center; gap: 0.5rem;';
+        
+        const label = document.createElement('label');
+        label.style.cssText = 'min-width: 100px; font-weight: 500;';
+        // 使用国际化翻译
+        const labelText = param.labelKey ? t(param.labelKey) : (param.label || param.name);
+        label.textContent = labelText + (param.required ? ' *' : '');
+        
+        const input = document.createElement('input');
+        input.type = param.type === 'number' ? 'number' : 'text';
+        input.className = 'form-control';
+        input.id = `redisParam_${param.name}`;
+        input.placeholder = labelText;
+        input.style.cssText = 'flex: 1;';
+        if (param.required) {
+            input.required = true;
+        }
+        
+        paramDiv.appendChild(label);
+        paramDiv.appendChild(input);
+        redisParamsContainer.appendChild(paramDiv);
+    });
+}
+
+// 更新 Redis 命令选择框选项（国际化）
+function updateRedisCommandOptions() {
+    if (!redisCommand) return;
+    
+    const commands = ['GET', 'SET', 'HGETALL', 'HSET', 'LRANGE', 'SMEMBERS', 'ZRANGE', 'KEYS', 'INFO'];
+    const currentValue = redisCommand.value;
+    
+    redisCommand.innerHTML = '';
+    commands.forEach(cmd => {
+        const option = document.createElement('option');
+        option.value = cmd;
+        const labelKey = `redis.command.${cmd}`;
+        const translated = t(labelKey);
+        option.textContent = translated !== labelKey ? translated : `${cmd} - ${cmd}`;
+        redisCommand.appendChild(option);
+    });
+    
+    // 恢复选中的值
+    if (currentValue) {
+        redisCommand.value = currentValue;
+    }
+}
+
+// Redis 命令选择变化事件
+if (redisCommand) {
+    redisCommand.addEventListener('change', () => {
+        updateRedisCommandParams();
+    });
+}
+
+// 执行 Redis 查询
+if (executeRedisQuery) {
+    executeRedisQuery.addEventListener('click', async () => {
+        if (!redisCommand || !redisParamsContainer) return;
+        
+        const command = redisCommand.value;
+        const params = redisCommandParams[command] || [];
+        
+        // 收集参数值
+        const args = [];
+        let hasError = false;
+        
+        params.forEach(param => {
+            const input = document.getElementById(`redisParam_${param.name}`);
+            if (input) {
+                const value = input.value.trim();
+                if (param.required && !value) {
+                    const labelText = param.labelKey ? t(param.labelKey) : (param.label || param.name);
+                    showNotification(t('redis.paramRequired', { param: labelText }) || `参数 "${labelText}" 是必填的`, 'error');
+                    hasError = true;
+                    return;
+                }
+                if (value) {
+                    args.push(value);
+                }
+            }
+        });
+        
+        if (hasError) return;
+        
+        // 组装命令
+        const query = [command, ...args].join(' ');
+        
+        showLoading(queryLoading);
+        setButtonLoading(executeRedisQuery, true);
+        try {
+            const response = await apiRequest(`${API_BASE}/query`, {
+                method: 'POST',
+                body: JSON.stringify({ query })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok || !data.success) {
+                queryResults.innerHTML = `<div class="query-message error">${translateApiError(data) || t('query.failed')}</div>`;
+                if (exportRedisQueryBtn) {
+                    exportRedisQueryBtn.style.display = 'none';
+                }
+                return;
+            }
+            
+            if (response.ok && data.success) {
+                if (data.data) {
+                    // 查询结果
+                    displayQueryResults(data.data);
+                    
+                    // 显示导出按钮
+                    if (exportRedisQueryBtn) {
+                        exportRedisQueryBtn.style.display = 'inline-block';
+                        exportRedisQueryBtn.setAttribute('data-i18n', 'query.exportExcel');
+                        exportRedisQueryBtn.textContent = t('query.exportExcel');
+                    }
+                } else if (data.affected !== undefined) {
+                    // 更新/删除/插入结果
+                    queryResults.innerHTML = `<div class="query-message success">${t('query.success', { affected: data.affected })}</div>`;
+                    if (exportRedisQueryBtn) {
+                        exportRedisQueryBtn.style.display = 'none';
+                    }
+                }
+            }
+        } catch (error) {
+            queryResults.innerHTML = `<div class="query-message error">${t('query.failed')}: ${error.message}</div>`;
+            if (exportRedisQueryBtn) {
+                exportRedisQueryBtn.style.display = 'none';
+            }
+        } finally {
+            hideLoading(queryLoading);
+            setButtonLoading(executeRedisQuery, false);
+        }
+    });
+}
+
+// 清空 Redis 查询
+if (clearRedisQuery) {
+    clearRedisQuery.addEventListener('click', () => {
+        if (redisCommand) {
+            redisCommand.value = 'GET';
+            updateRedisCommandParams();
+        }
+        // 清空所有参数输入框
+        if (redisParamsContainer) {
+            redisParamsContainer.querySelectorAll('input').forEach(input => {
+                input.value = '';
+            });
+        }
+    });
+}
+
+// 执行 Elasticsearch 查询
+if (executeESQuery) {
+    executeESQuery.addEventListener('click', async () => {
+        if (!esQuery) return;
+        
+        const queryText = esQuery.value.trim();
+        if (!queryText) {
+            showNotification(t('query.empty'), 'error');
+            return;
+        }
+        
+        // 验证 JSON 格式
+        try {
+            JSON.parse(queryText);
+        } catch (e) {
+            showNotification('查询 DSL 必须是有效的 JSON 格式', 'error');
+            return;
+        }
+        
+        // 构建查询（包含索引信息）
+        let query = queryText;
+        if (esIndex && esIndex.value.trim()) {
+            // 如果指定了索引，需要在查询中包含索引信息
+            // 但后端 ExecuteQuery 会查询所有索引，所以这里先只发送 DSL
+            // 如果需要指定索引，可以在 DSL 中添加 _index 过滤
+            query = queryText;
+        }
+        
+        showLoading(queryLoading);
+        setButtonLoading(executeESQuery, true);
+        try {
+            const response = await apiRequest(`${API_BASE}/query`, {
+                method: 'POST',
+                body: JSON.stringify({ query })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok || !data.success) {
+                queryResults.innerHTML = `<div class="query-message error">${translateApiError(data) || t('query.failed')}</div>`;
+                if (exportESQueryBtn) {
+                    exportESQueryBtn.style.display = 'none';
+                }
+                return;
+            }
+            
+            if (response.ok && data.success) {
+                if (data.data) {
+                    // 查询结果
+                    displayQueryResults(data.data);
+                    
+                    // 显示导出按钮
+                    if (exportESQueryBtn) {
+                        exportESQueryBtn.style.display = 'inline-block';
+                        exportESQueryBtn.setAttribute('data-i18n', 'query.exportExcel');
+                        exportESQueryBtn.textContent = t('query.exportExcel');
+                    }
+                } else if (data.affected !== undefined) {
+                    // 更新/删除/插入结果
+                    queryResults.innerHTML = `<div class="query-message success">${t('query.success', { affected: data.affected })}</div>`;
+                    if (exportESQueryBtn) {
+                        exportESQueryBtn.style.display = 'none';
+                    }
+                }
+            }
+        } catch (error) {
+            queryResults.innerHTML = `<div class="query-message error">${t('query.failed')}: ${error.message}</div>`;
+            if (exportESQueryBtn) {
+                exportESQueryBtn.style.display = 'none';
+            }
+        } finally {
+            hideLoading(queryLoading);
+            setButtonLoading(executeESQuery, false);
+        }
+    });
+}
+
+// 格式化 Elasticsearch 查询
+if (formatESQueryBtn) {
+    formatESQueryBtn.addEventListener('click', () => {
+        if (!esQuery) return;
+        
+        const queryText = esQuery.value.trim();
+        if (!queryText) {
+            showNotification(t('query.empty'), 'error');
+            return;
+        }
+        
+        try {
+            const parsed = JSON.parse(queryText);
+            const formatted = JSON.stringify(parsed, null, 2);
+            esQuery.value = formatted;
+            showNotification(t('query.formatSuccess'), 'success');
+        } catch (error) {
+            showNotification(t('query.formatFailed') + ': ' + error.message, 'error');
+        }
+    });
+}
+
+// 清空 Elasticsearch 查询
+if (clearESQuery) {
+    clearESQuery.addEventListener('click', () => {
+        if (esIndex) esIndex.value = '';
+        if (esQuery) esQuery.value = '';
+    });
 }
 
 // 执行SQL查询

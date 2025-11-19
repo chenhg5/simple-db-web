@@ -198,7 +198,8 @@
 
                 <!-- SQL查询标签页 -->
                 <div class="tab-content" id="queryTab">
-                    <div class="query-editor">
+                    <!-- SQL 查询编辑器（MySQL, PostgreSQL 等） -->
+                    <div class="query-editor" id="sqlQueryEditor" style="display: none;">
                         <div id="sqlEditorContainer" style="position: relative;">
                             <textarea id="sqlQuery" class="sql-input" data-i18n-placeholder="query.placeholder" placeholder="输入SQL查询..."></textarea>
                         </div>
@@ -208,6 +209,48 @@
                             <button class="btn btn-secondary" id="clearQuery" data-i18n="common.clear">清空</button>
                             <button class="btn btn-secondary" id="showHistoryBtn" data-i18n="query.showHistory" title="显示查询历史">历史</button>
                             <button class="btn btn-secondary" id="exportQueryBtn" data-i18n="query.exportExcel" style="display: none;">导出Excel</button>
+                        </div>
+                    </div>
+                    <!-- Redis 命令编辑器 -->
+                    <div class="query-editor" id="redisQueryEditor" style="display: none;">
+                        <div class="redis-command-builder" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                                <label style="min-width: 100px; font-weight: 600;" data-i18n="redis.command">命令:</label>
+                                <select id="redisCommand" class="form-control" style="flex: 1;">
+                                    <!-- 选项将通过 JavaScript 动态生成并国际化 -->
+                                </select>
+                            </div>
+                            <div id="redisParamsContainer" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <!-- 参数输入框将动态生成 -->
+                            </div>
+                            <div class="query-toolbar">
+                                <button class="btn btn-primary" id="executeRedisQuery" data-i18n="query.execute">执行</button>
+                                <button class="btn btn-secondary" id="clearRedisQuery" data-i18n="common.clear">清空</button>
+                                <button class="btn btn-secondary" id="exportRedisQueryBtn" data-i18n="query.exportExcel"
+                                    style="display: none;">导出Excel</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Elasticsearch 查询编辑器 -->
+                    <div class="query-editor" id="elasticsearchQueryEditor" style="display: none;">
+                        <div class="elasticsearch-query-builder" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div class="form-group">
+                                <label style="font-weight: 600;" data-i18n="elasticsearch.index">索引 (可选，留空查询所有索引):</label>
+                                <input type="text" id="esIndex" class="form-control" placeholder="test, user, *">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-weight: 600;" data-i18n="elasticsearch.query">查询 DSL (JSON):</label>
+                                <textarea id="esQuery" class="sql-input" style="min-height: 200px; font-family: monospace;"
+                                    placeholder='{"query": {"match_all": {}}}'></textarea>
+                            </div>
+                            <div class="query-toolbar">
+                                <button class="btn btn-primary" id="executeESQuery" data-i18n="query.execute">执行</button>
+                                <button class="btn btn-secondary" id="formatESQueryBtn" data-i18n="query.format">格式化</button>
+                                <button class="btn btn-secondary" id="clearESQuery" data-i18n="common.clear">清空</button>
+                                <button class="btn btn-secondary" id="exportESQueryBtn" data-i18n="query.exportExcel"
+                                    style="display: none;">导出Excel</button>
+                            </div>
                         </div>
                     </div>
                     <div class="query-results-container" id="queryResultsContainer" style="position: relative;">
